@@ -1,0 +1,27 @@
+version: 2
+
+sources:
+  - name: silver
+    description: Contract-valid, deduplicated events written by the Silver processor.
+    tables:
+      - name: events
+        columns:
+          - name: event_id
+            data_tests: [unique, not_null]
+      - name: quarantine
+  - name: ops
+    tables:
+      - name: stream_state
+        description: Per-stream event-time clock and watermark (advanced per micro-batch).
+      - name: kpi_restatements
+        description: Business dates changed by beyond-watermark events after they were final.
+      - name: late_events
+  - name: ref
+    description: Master data snapshots.
+    tables:
+      - name: regions
+      - name: packages
+      - name: products
+      - name: factories
+      - name: warehouses
+      - name: dealers

@@ -81,6 +81,7 @@ Validation runs in order; the first failing step decides the reason code.
 | 3 | `UNKNOWN_EVENT_TYPE` | no contract for type | quarantine |
 | 4 | `UNSUPPORTED_SCHEMA_VERSION` | type known, version not registered | quarantine |
 | 5 | `CONTRACT_VIOLATION` | payload schema or business rule failed | quarantine |
+| 5b | `INVALID_TIMESTAMP` | event_time more than 5 min after the record's arrival time (would poison the stream clock) | quarantine |
 | 6 | `EVENT_ID_CONFLICT` | same `event_id` already in Silver with a different payload hash | quarantine; the first accepted version stays |
 | — | duplicate | same `event_id`, same payload hash | not quarantined; logged in `ops.duplicate_events` |
 

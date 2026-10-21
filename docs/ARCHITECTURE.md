@@ -1,6 +1,6 @@
 # SignalFlow X — Architecture
 
-Status: Phase 0 design, Phase 1 implemented for the `lite` profile. Sections marked *(planned)* are designs, not
+Status: Phase 0 design; Phase 1 implemented and tested for the `lite` profile (see `docs/reports/PHASE1_REPORT.md`). Sections marked *(planned)* are designs, not
 working code yet.
 
 ## 1. Context
@@ -121,6 +121,7 @@ erDiagram
 | `fct_recharge` | one recharge attempt | `recharge_id` | business date, channel, status, amount, as-of subscriber key |
 | `fct_billing_charge` | one balance credit | `charge_id` | |
 | `fct_package_purchase` | one activation | `activation_id` | with capture status |
+| `fct_return` | one return | `return_id` | refunds paid against it |
 | `fct_usage` | one rated usage record | `usage_id` | |
 | `fct_channel_settlement` | channel × business date | `settlement_id` | |
 | `fct_inventory_movement` | one movement | `movement_id` | |
@@ -131,6 +132,8 @@ erDiagram
 | `mart_telecom_subscribers_daily` | business date × region × segment | composite | active base from SCD2 |
 | `mart_inventory_position` | warehouse × SKU | composite | on hand, 7-day outbound, days of cover (derived) |
 | `mart_mfg_sales_daily` | business date × dealer region × category | composite | |
+| `mart_mfg_production_daily` | business date × factory × category | composite | includes disruption days |
+| `mart_telecom_usage_daily` | business date × serving region × usage type | composite | |
 
 ## 6. Full-profile design *(planned)*
 

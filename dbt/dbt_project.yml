@@ -1,0 +1,22 @@
+name: signalflow
+version: "0.1.0"
+config-version: 2
+profile: signalflow
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+clean-targets: ["target", "logs"]
+
+models:
+  signalflow:
+    staging:
+      +schema: silver
+      +materialized: view
+    gold:
+      +schema: gold
+      +materialized: table
+
+tests:
+  signalflow:
+    +store_failures: false

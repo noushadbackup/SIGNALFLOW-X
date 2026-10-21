@@ -1,0 +1,32 @@
+# SignalFlow X — local deployment.
+# Profiles: `lite` (Phase 1). `stream` and `full` profiles are added in Phases 2-3 as their services are verified.
+# Images default to mirror.gcr.io because Docker Hub rate-limits anonymous pulls; override with *_IMAGE variables.
+name: signalflow
+
+services:
+  postgres:
+    profiles: ["lite", "stream", "full"]
+    image: ${POSTGRES_IMAGE:-mirror.gcr.io/library/postgres:16-alpine}
+    environment:
+      POSTGRES_USER: ${PGUSER:?set PGUSER in .env}
+      POSTGRES_PASSWORD: ${PGPASSWORD:?set PGPASSWORD in .env}
+      POSTGRES_DB: ${PGDATABASE:?set PGDATABASE in .env}
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=4", "-c", "max_wal_senders=4",
+              "-c", "shared_buffers=256MB", "-c", "work_mem=32MB"]
+    ports:
+      - "127.0.0.1:${PGPORT:-5432}:5432"   # loopback only by default
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    restart: unless-stopped
+
+volumes:
+  pgdata:

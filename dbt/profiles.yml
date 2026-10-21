@@ -1,0 +1,13 @@
+# Connection comes from the same libpq environment variables as the Python pipeline. No secrets in this file.
+signalflow:
+  target: lite
+  outputs:
+    lite:
+      type: postgres
+      host: "{{ env_var('PGHOST') }}"
+      port: "{{ env_var('PGPORT', '5432') | int }}"
+      user: "{{ env_var('PGUSER') }}"
+      password: "{{ env_var('PGPASSWORD') }}"
+      dbname: "{{ env_var('PGDATABASE') }}"
+      schema: gold
+      threads: 4

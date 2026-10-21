@@ -1,0 +1,142 @@
+version: 2
+
+models:
+  # ---------------- shared ----------------
+  - name: dim_date
+    description: Calendar in Asia/Dhaka; Friday and Saturday are the weekend.
+    columns:
+      - name: date_day
+        data_tests: [unique, not_null]
+  - name: dim_region
+    columns:
+      - name: region_code
+        data_tests: [unique, not_null]
+
+  # ---------------- telecom ----------------
+  - name: dim_package
+    columns:
+      - name: package_code
+        data_tests: [unique, not_null]
+  - name: dim_subscriber_scd2
+    description: "Grain: subscriber x validity interval. SCD2 on segment, home_region, plan_type, status."
+    columns:
+      - name: subscriber_sk
+        data_tests: [unique, not_null]
+      - name: subscriber_id
+        data_tests: [not_null]
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['ACTIVE', 'TERMINATED']}
+  - name: fct_recharge
+    description: "Grain: one recharge attempt. Freshness expectation: provisional until the telecom watermark passes the business day."
+    columns:
+      - name: recharge_id
+        data_tests: [unique, not_null]
+      - name: subscriber_sk
+        description: As-of subscriber version; null would mean a recharge before the subscriber existed.
+        data_tests: [not_null]
+      - name: region
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_region'), field: region_code}
+      - name: business_date
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_date'), field: date_day}
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['SUCCESS', 'FAILED']}
+  - name: fct_billing_charge
+    columns:
+      - name: charge_id
+        data_tests: [unique, not_null]
+  - name: fct_package_purchase
+    columns:
+      - name: activation_id
+        data_tests: [unique, not_null]
+      - name: package_code
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_package'), field: package_code}
+  - name: fct_usage
+    columns:
+      - name: usage_id
+        data_tests: [unique, not_null]
+  - name: fct_channel_settlement
+    columns:
+      - name: settlement_id
+        data_tests: [unique, not_null]
+  - name: mart_telecom_revenue_daily
+    description: "Grain: business_date x region x channel. Money in BDT."
+    data_tests:
+      - unique_combination:
+          arguments: {columns: ['business_date', 'region', 'channel']}
+    columns:
+      - name: kpi_status
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['PROVISIONAL', 'FINAL', 'RESTATED']}
+  - name: mart_telecom_subscribers_daily
+    data_tests:
+      - unique_combination:
+          arguments: {columns: ['business_date', 'home_region', 'segment']}
+  - name: mart_telecom_usage_daily
+    data_tests:
+      - unique_combination:
+          arguments: {columns: ['business_date', 'serving_region', 'usage_type']}
+
+  # ---------------- manufacturing ----------------
+  - name: dim_product
+    columns:
+      - name: sku
+        data_tests: [unique, not_null]
+  - name: dim_warehouse
+    columns:
+      - name: warehouse_id
+        data_tests: [unique, not_null]
+  - name: dim_dealer
+    columns:
+      - name: dealer_id
+        data_tests: [unique, not_null]
+  - name: fct_inventory_movement
+    columns:
+      - name: movement_id
+        data_tests: [unique, not_null]
+      - name: sku
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_product'), field: sku}
+      - name: warehouse_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_warehouse'), field: warehouse_id}
+  - name: fct_shipment
+    columns:
+      - name: shipment_id
+        data_tests: [unique, not_null]
+  - name: fct_invoice
+    columns:
+      - name: invoice_id
+        data_tests: [unique, not_null]
+  - name: fct_dealer_order
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+      - name: dealer_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_dealer'), field: dealer_id}
+  - name: fct_return
+    columns:
+      - name: return_id
+        data_tests: [unique, not_null]
+  - name: mart_inventory_position
+    data_tests:
+      - unique_combination:
+          arguments: {columns: ['warehouse_id', 'sku']}
+  - name: mart_mfg_sales_daily
+    data_tests:
+      - unique_combination:
+          arguments: {columns: ['business_date', 'dealer_region', 'category']}

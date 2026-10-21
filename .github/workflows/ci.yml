@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: signalflow
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: signalflow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U signalflow" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: signalflow
+      PGPASSWORD: ci-only-password   # throwaway CI container credential, not a secret
+      PGDATABASE: signalflow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check src tests
+      - name: Type check
+        run: mypy src
+      - name: Unit tests
+        run: pytest tests/unit -q
+      - name: End-to-end acceptance tests (real PostgreSQL)
+        run: pytest tests/integration -q -rA
