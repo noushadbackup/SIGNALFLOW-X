@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/mfg.product_return/1.0",
+  "title": "mfg.product_return v1.0",
+  "description": "Goods returned by a dealer against an invoice.",
+  "x-business-key": "return_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "return_id",
+    "invoice_id",
+    "dealer_id",
+    "sku",
+    "quantity",
+    "refund_amount_bdt",
+    "warehouse_id"
+  ],
+  "properties": {
+    "return_id": {
+      "type": "string",
+      "pattern": "^RET-[0-9A-F]{12}$"
+    },
+    "invoice_id": {
+      "type": "string",
+      "pattern": "^INV-[0-9A-F]{12}$"
+    },
+    "dealer_id": {
+      "type": "string",
+      "pattern": "^DLR-[0-9]{4}$"
+    },
+    "sku": {
+      "type": "string",
+      "pattern": "^[A-Z]{2,3}-[A-Z0-9]{2,8}$"
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100000
+    },
+    "refund_amount_bdt": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "x-decimal-places": 2
+    },
+    "warehouse_id": {
+      "type": "string",
+      "pattern": "^WH-[A-Z]{3}-[0-9]{2}$"
+    }
+  }
+}

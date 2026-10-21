@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/telecom.payment_capture/1.0",
+  "title": "telecom.payment_capture v1.0",
+  "description": "Payment gateway capture result for a bundle purchase.",
+  "x-business-key": "capture_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "capture_id",
+    "payment_txn_ref",
+    "subscriber_id",
+    "amount_bdt",
+    "status",
+    "purpose"
+  ],
+  "properties": {
+    "capture_id": {
+      "type": "string",
+      "pattern": "^CAP-[0-9A-F]{12}$"
+    },
+    "payment_txn_ref": {
+      "type": "string",
+      "pattern": "^PAY-[0-9A-F]{12}$"
+    },
+    "subscriber_id": {
+      "type": "string",
+      "pattern": "^SUB-[0-9]{7}$"
+    },
+    "amount_bdt": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "x-decimal-places": 2
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "CAPTURED",
+        "FAILED"
+      ]
+    },
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "PACKAGE"
+      ]
+    }
+  }
+}

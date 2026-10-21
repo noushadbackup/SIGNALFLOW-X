@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "signalflow-x"
+version = "0.1.0"
+description = "SignalFlow X: simulated telecom + manufacturing data platform (portfolio project)"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "jsonschema==4.26.0",
+  "psycopg[binary]==3.2.13",
+  "dbt-core==1.11.16",
+  "dbt-postgres==1.11.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "ruff==0.14.0", "mypy==1.18.2"]
+
+[project.scripts]
+signalflow = "signalflow.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: needs a PostgreSQL server reachable through PG* environment variables"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true

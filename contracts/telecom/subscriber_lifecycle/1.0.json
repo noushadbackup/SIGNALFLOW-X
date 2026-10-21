@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/telecom.subscriber_lifecycle/1.0",
+  "title": "telecom.subscriber_lifecycle v1.0",
+  "description": "Full-state snapshot of a subscriber after a lifecycle change.",
+  "x-business-key": "event_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "subscriber_id",
+    "action",
+    "segment",
+    "home_region",
+    "plan_type"
+  ],
+  "properties": {
+    "subscriber_id": {
+      "type": "string",
+      "pattern": "^SUB-[0-9]{7}$"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "ACTIVATED",
+        "REGION_CHANGED",
+        "SEGMENT_CHANGED",
+        "TERMINATED"
+      ]
+    },
+    "segment": {
+      "type": "string",
+      "enum": [
+        "MASS",
+        "YOUTH",
+        "PREMIUM",
+        "ENTERPRISE"
+      ]
+    },
+    "home_region": {
+      "type": "string",
+      "enum": [
+        "DHAKA",
+        "CHATTOGRAM",
+        "RAJSHAHI",
+        "KHULNA",
+        "BARISHAL",
+        "SYLHET",
+        "RANGPUR",
+        "MYMENSINGH"
+      ]
+    },
+    "plan_type": {
+      "type": "string",
+      "enum": [
+        "PREPAID",
+        "POSTPAID"
+      ]
+    }
+  }
+}

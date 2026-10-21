@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/mfg.order_status/1.0",
+  "title": "mfg.order_status v1.0",
+  "description": "Order status change after placement.",
+  "x-business-key": "event_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "order_id",
+    "status",
+    "reason"
+  ],
+  "properties": {
+    "order_id": {
+      "type": "string",
+      "pattern": "^ORD-[0-9A-F]{12}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "BACKORDERED",
+        "CANCELLED"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "INSUFFICIENT_STOCK",
+        "DEALER_REQUEST",
+        "CREDIT_HOLD"
+      ]
+    }
+  }
+}

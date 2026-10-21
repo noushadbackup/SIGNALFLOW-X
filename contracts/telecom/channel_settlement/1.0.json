@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/telecom.channel_settlement/1.0",
+  "title": "telecom.channel_settlement v1.0",
+  "description": "Daily settlement reported by a payment channel for one business date.",
+  "x-business-key": "settlement_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "settlement_id",
+    "channel",
+    "business_date",
+    "transaction_count",
+    "settled_amount_bdt"
+  ],
+  "properties": {
+    "settlement_id": {
+      "type": "string",
+      "pattern": "^STL-[A-Z_]+-[0-9]{8}$"
+    },
+    "channel": {
+      "type": "string",
+      "enum": [
+        "MOBILE_WALLET",
+        "BANK_CARD",
+        "RETAIL_AGENT",
+        "INTERNET_BANKING"
+      ]
+    },
+    "business_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "transaction_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "settled_amount_bdt": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000000,
+      "x-decimal-places": 2
+    }
+  }
+}

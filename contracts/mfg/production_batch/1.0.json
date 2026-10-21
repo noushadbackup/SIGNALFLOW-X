@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/mfg.production_batch/1.0",
+  "title": "mfg.production_batch v1.0",
+  "description": "Completed production batch received into a warehouse.",
+  "x-business-key": "batch_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "batch_id",
+    "factory_id",
+    "sku",
+    "quantity",
+    "destination_warehouse_id"
+  ],
+  "properties": {
+    "batch_id": {
+      "type": "string",
+      "pattern": "^BAT-[0-9A-F]{12}$"
+    },
+    "factory_id": {
+      "type": "string",
+      "pattern": "^FAC-[0-9]{2}$"
+    },
+    "sku": {
+      "type": "string",
+      "pattern": "^[A-Z]{2,3}-[A-Z0-9]{2,8}$"
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100000
+    },
+    "destination_warehouse_id": {
+      "type": "string",
+      "pattern": "^WH-[A-Z]{3}-[0-9]{2}$"
+    }
+  }
+}

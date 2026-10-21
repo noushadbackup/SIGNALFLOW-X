@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/telecom.billing_charge/1.0",
+  "title": "telecom.billing_charge v1.0",
+  "description": "Balance credit posted by billing for a successful recharge.",
+  "x-business-key": "charge_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "charge_id",
+    "recharge_id",
+    "subscriber_id",
+    "amount_bdt",
+    "charge_type"
+  ],
+  "properties": {
+    "charge_id": {
+      "type": "string",
+      "pattern": "^CHG-[0-9A-F]{12}$"
+    },
+    "recharge_id": {
+      "type": "string",
+      "pattern": "^RCH-[0-9A-F]{12}$"
+    },
+    "subscriber_id": {
+      "type": "string",
+      "pattern": "^SUB-[0-9]{7}$"
+    },
+    "amount_bdt": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "x-decimal-places": 2
+    },
+    "charge_type": {
+      "type": "string",
+      "enum": [
+        "RECHARGE_CREDIT"
+      ]
+    }
+  }
+}

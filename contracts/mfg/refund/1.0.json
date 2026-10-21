@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/mfg.refund/1.0",
+  "title": "mfg.refund v1.0",
+  "description": "Refund paid to a dealer for a return.",
+  "x-business-key": "refund_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "refund_id",
+    "return_id",
+    "dealer_id",
+    "amount_bdt"
+  ],
+  "properties": {
+    "refund_id": {
+      "type": "string",
+      "pattern": "^RFD-[0-9A-F]{12}$"
+    },
+    "return_id": {
+      "type": "string",
+      "pattern": "^RET-[0-9A-F]{12}$"
+    },
+    "dealer_id": {
+      "type": "string",
+      "pattern": "^DLR-[0-9]{4}$"
+    },
+    "amount_bdt": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "x-decimal-places": 2
+    }
+  }
+}

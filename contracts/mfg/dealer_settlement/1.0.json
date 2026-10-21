@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/mfg.dealer_settlement/1.0",
+  "title": "mfg.dealer_settlement v1.0",
+  "description": "Dealer payment applied to an invoice.",
+  "x-business-key": "settlement_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "settlement_id",
+    "invoice_id",
+    "dealer_id",
+    "amount_bdt"
+  ],
+  "properties": {
+    "settlement_id": {
+      "type": "string",
+      "pattern": "^DST-[0-9A-F]{12}$"
+    },
+    "invoice_id": {
+      "type": "string",
+      "pattern": "^INV-[0-9A-F]{12}$"
+    },
+    "dealer_id": {
+      "type": "string",
+      "pattern": "^DLR-[0-9]{4}$"
+    },
+    "amount_bdt": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "x-decimal-places": 2
+    }
+  }
+}

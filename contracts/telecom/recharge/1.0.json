@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/telecom.recharge/1.0",
+  "title": "telecom.recharge v1.0",
+  "description": "One recharge attempt as reported by the charging system.",
+  "x-business-key": "recharge_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "recharge_id",
+    "subscriber_id",
+    "amount_bdt",
+    "channel",
+    "payment_txn_ref",
+    "status",
+    "failure_reason",
+    "region"
+  ],
+  "properties": {
+    "recharge_id": {
+      "type": "string",
+      "pattern": "^RCH-[0-9A-F]{12}$"
+    },
+    "subscriber_id": {
+      "type": "string",
+      "pattern": "^SUB-[0-9]{7}$"
+    },
+    "amount_bdt": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "x-decimal-places": 2
+    },
+    "channel": {
+      "type": "string",
+      "enum": [
+        "MOBILE_WALLET",
+        "BANK_CARD",
+        "RETAIL_AGENT",
+        "INTERNET_BANKING"
+      ]
+    },
+    "payment_txn_ref": {
+      "type": "string",
+      "pattern": "^PAY-[0-9A-F]{12}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "SUCCESS",
+        "FAILED"
+      ]
+    },
+    "failure_reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "INSUFFICIENT_FUNDS",
+        "GATEWAY_TIMEOUT",
+        "CHANNEL_DECLINED"
+      ]
+    },
+    "region": {
+      "type": "string",
+      "enum": [
+        "DHAKA",
+        "CHATTOGRAM",
+        "RAJSHAHI",
+        "KHULNA",
+        "BARISHAL",
+        "SYLHET",
+        "RANGPUR",
+        "MYMENSINGH"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "SUCCESS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "failure_reason": {
+            "const": null
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "FAILED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "failure_reason": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

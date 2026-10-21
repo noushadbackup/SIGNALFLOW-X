@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/telecom.package_activation/1.0",
+  "title": "telecom.package_activation v1.0",
+  "description": "Bundle activation decision by the provisioning system.",
+  "x-business-key": "activation_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "activation_id",
+    "subscriber_id",
+    "package_code",
+    "price_bdt",
+    "payment_txn_ref",
+    "status"
+  ],
+  "properties": {
+    "activation_id": {
+      "type": "string",
+      "pattern": "^ACT-[0-9A-F]{12}$"
+    },
+    "subscriber_id": {
+      "type": "string",
+      "pattern": "^SUB-[0-9]{7}$"
+    },
+    "package_code": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]{3,30}$"
+    },
+    "price_bdt": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10000000,
+      "x-decimal-places": 2
+    },
+    "payment_txn_ref": {
+      "type": "string",
+      "pattern": "^PAY-[0-9A-F]{12}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ACTIVATED",
+        "REJECTED"
+      ]
+    }
+  }
+}

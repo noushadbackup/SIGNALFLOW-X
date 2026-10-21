@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signalflow://contracts/telecom.usage_record/1.0",
+  "title": "telecom.usage_record v1.0",
+  "description": "Rated usage record (aggregated session) from mediation.",
+  "x-business-key": "usage_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "usage_id",
+    "subscriber_id",
+    "usage_type",
+    "quantity",
+    "unit",
+    "serving_region",
+    "cell_area_code",
+    "rated_amount_bdt"
+  ],
+  "properties": {
+    "usage_id": {
+      "type": "string",
+      "pattern": "^USG-[0-9A-F]{12}$"
+    },
+    "subscriber_id": {
+      "type": "string",
+      "pattern": "^SUB-[0-9]{7}$"
+    },
+    "usage_type": {
+      "type": "string",
+      "enum": [
+        "DATA",
+        "VOICE",
+        "SMS"
+      ]
+    },
+    "quantity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "unit": {
+      "type": "string",
+      "enum": [
+        "MB",
+        "SECOND",
+        "MESSAGE"
+      ]
+    },
+    "serving_region": {
+      "type": "string",
+      "enum": [
+        "DHAKA",
+        "CHATTOGRAM",
+        "RAJSHAHI",
+        "KHULNA",
+        "BARISHAL",
+        "SYLHET",
+        "RANGPUR",
+        "MYMENSINGH"
+      ]
+    },
+    "cell_area_code": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}-[0-9]{3}$"
+    },
+    "rated_amount_bdt": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000000,
+      "x-decimal-places": 2
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "usage_type": {
+            "const": "DATA"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "unit": {
+            "const": "MB"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "usage_type": {
+            "const": "VOICE"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "unit": {
+            "const": "SECOND"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "usage_type": {
+            "const": "SMS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "unit": {
+            "const": "MESSAGE"
+          }
+        }
+      }
+    }
+  ]
+}
