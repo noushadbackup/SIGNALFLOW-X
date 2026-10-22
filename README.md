@@ -47,6 +47,7 @@ make up                   # PostgreSQL 16, bound to 127.0.0.1
 make generate             # deterministic dataset (seed 7): ~25k events, 3 days, both domains
 make run                  # bronze -> silver -> dbt gold (100 models and data tests)
 make status               # counts, quarantine reasons, stream watermarks
+make ui                   # control tower preview on http://127.0.0.1:8501 (Streamlit, read-only)
 make test                 # ruff, mypy, 96 unit tests, 14 end-to-end tests on a real database
 ```
 

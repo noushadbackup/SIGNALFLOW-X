@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest==9.1.1", "ruff==0.14.0", "mypy==1.18.2"]
+ui = ["streamlit==1.50.0", "plotly==6.3.0"]
 
 [project.scripts]
 signalflow = "signalflow.cli:main"
@@ -33,6 +34,10 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# inline CSS, HTML templates and Plotly hover templates read better unwrapped
+"src/signalflow/ui/app.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

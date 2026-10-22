@@ -26,12 +26,12 @@ jobs:
       PGPASSWORD: ci-only-password   # throwaway CI container credential, not a secret
       PGDATABASE: signalflow
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev,ui]"
       - name: Lint
         run: ruff check src tests
       - name: Type check

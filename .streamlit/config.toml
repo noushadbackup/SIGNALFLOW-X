@@ -1,0 +1,17 @@
+[server]
+address = "127.0.0.1"   # loopback only by default
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#2a78d6"
+backgroundColor = "#f9f9f7"
+secondaryBackgroundColor = "#f0efec"
+textColor = "#0b0b0b"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"

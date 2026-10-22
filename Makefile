@@ -9,7 +9,7 @@ SEED ?= 7
 .PHONY: setup up down generate run status test test-unit test-integration lint clean
 
 setup:            ## create venv and install
-	python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+	python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev,ui]"
 
 up:               ## start PostgreSQL (lite profile)
 	docker compose --profile lite up -d --wait
@@ -25,6 +25,9 @@ run:              ## bronze -> silver -> dbt gold
 
 status:
 	.venv/bin/signalflow status
+
+ui:               ## control tower on http://127.0.0.1:8501 (needs `make run` first)
+	.venv/bin/streamlit run src/signalflow/ui/app.py
 
 lint:
 	.venv/bin/ruff check src tests && .venv/bin/mypy src

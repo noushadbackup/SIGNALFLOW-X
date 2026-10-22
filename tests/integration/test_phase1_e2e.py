@@ -128,6 +128,16 @@ def test_technical_duplicates_logged_not_counted(clean_run: CleanRun) -> None:
         clean_run.truth["technical_duplicates"]
 
 
+def test_processing_runs_record_real_batch_durations(clean_run: CleanRun) -> None:
+    # finished_at must be taken at the end of the batch, not at transaction start (now() would make every run ~0 ms)
+    rows = clean_run.conn.execute(
+        "SELECT extract(epoch FROM finished_at - started_at) * 1000 FROM ops.processing_runs WHERE rows_read > 0"
+    ).fetchall()
+    durations = sorted(float(r[0]) for r in rows)
+    assert durations and durations[0] > 0
+    assert durations[len(durations) // 2] > 1.0  # validating hundreds of events cannot take under a millisecond
+
+
 def test_arrival_classes_follow_documented_batch_watermark_semantics(clean_run: CleanRun) -> None:
     """Independent re-computation from the arrival files: one micro-batch per file, clock = max accepted event
     time before the batch, first occurrence of a valid event_id wins."""

@@ -208,7 +208,8 @@ def _process_batch(conn: psycopg.Connection, registry: ContractRegistry, chunk_s
         stats.accepted = len(silver_rows)
         conn.execute(
             """INSERT INTO ops.processing_runs (processor, from_bronze_id, to_bronze_id, rows_read, rows_accepted,
-                   rows_quarantined, rows_duplicate, started_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                   rows_quarantined, rows_duplicate, started_at, finished_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, clock_timestamp())""",  # now() would be the txn start
             (PROCESSOR, stats.from_bronze_id, stats.to_bronze_id, stats.read, stats.accepted,
              sum(stats.quarantined.values()), stats.duplicates, started))
     log.info("silver batch committed", extra={
