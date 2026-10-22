@@ -13,6 +13,7 @@ import sys
 import time
 from pathlib import Path
 
+import psycopg
 import pytest
 
 from signalflow.ingest.bronze_loader import arrival_files
@@ -162,3 +163,31 @@ def test_publisher_killed_mid_write_and_between_tables_publishes_each_row_once(
     assert_lake_matches_postgres(env)
     appends = [s for s in snapshots(env.settings, "silver", "events") if s["hwm"] is not None]
     assert len(appends) == 1, "silver.events must be appended once, not again by the recovery run"
+
+
+def test_recreated_source_database_is_refused_instead_of_mixed(lake_env: LakeEnv, seed7_data: Path) -> None:
+    """A source database dropped and recreated under the same name restarts its identity columns. Appending by
+    high-water mark would then skip the new rows below the old mark and mix two datasets in one table, so the
+    publisher must refuse until the namespace is dropped or another prefix is used."""
+    env = lake_env
+    files = arrival_files(seed7_data / "arrivals")
+    with env.conn() as conn:
+        prepare(conn, seed7_data)
+        ingest_and_process(conn, seed7_data, chunk_size=100_000, files=files[: len(files) // 2])
+    cmd = [sys.executable, "-m", "signalflow.lakehouse.publish", "--database", env.database, "--table", "silver.events"]
+    first = subprocess.run(cmd, env=env.env, capture_output=True, text=True, timeout=600, check=False)
+    assert first.returncode == 0, first.stdout[-3000:] + first.stderr[-3000:]
+    ident = f"{CATALOG}.{env.settings.namespace('silver')}.events"
+    _, before = query(env.settings, f"SELECT count(*) FROM {ident}")
+
+    with psycopg.connect(autocommit=True) as admin_conn:
+        admin_conn.execute(f'DROP DATABASE "{env.database}" WITH (FORCE)')
+        admin_conn.execute(f'CREATE DATABASE "{env.database}"')
+    with env.conn() as conn:
+        prepare(conn, seed7_data)
+        ingest_and_process(conn, seed7_data, chunk_size=100_000)  # more rows than before: ids pass the old mark
+    again = subprocess.run(cmd, env=env.env, capture_output=True, text=True, timeout=600, check=False)
+    assert again.returncode != 0
+    assert "SourceMismatch" in again.stdout + again.stderr and "earlier incarnation" in again.stdout + again.stderr
+    _, after = query(env.settings, f"SELECT count(*) FROM {ident}")
+    assert after == before

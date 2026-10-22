@@ -77,10 +77,12 @@ def run_dbt_lake(command: str = "build", extra: list[str] | None = None,
     return proc
 
 
-def drop_namespaces(settings: LakeSettings) -> list[str]:
-    """Drop every table, view and namespace under this prefix (test lakes). Refuses the unprefixed lake."""
-    if not settings.namespace_prefix:
-        raise ValueError("refusing to drop the unprefixed lake; set SIGNALFLOW_LAKE_PREFIX to a test prefix")
+def drop_namespaces(settings: LakeSettings, allow_main_lake: bool = False) -> list[str]:
+    """Drop every table, view and namespace under this prefix. The unprefixed lake is refused unless the caller
+    asks for it explicitly, so a test that lost its prefix cannot wipe it."""
+    if not settings.namespace_prefix and not allow_main_lake:
+        raise ValueError("refusing to drop the unprefixed lake; set SIGNALFLOW_LAKE_PREFIX to a test prefix, or pass "
+                         "--include-main-lake")
     dropped: list[str] = []
     for layer in sorted({t.layer for t in TABLES} | {"gold"}):
         ns = settings.namespace(layer)

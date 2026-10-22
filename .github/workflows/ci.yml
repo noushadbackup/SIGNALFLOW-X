@@ -128,14 +128,15 @@ jobs:
         run: docker compose --profile lake up -d --wait
       - name: Lake acceptance tests
         run: pytest tests/lake -q -rA
-      - name: Airflow DAG end to end (lite pipeline, then the DAG inside the Airflow image)
+      - name: Airflow DAGs end to end (lite pipeline, then the lakehouse and leak-hunter DAGs inside the Airflow image)
         run: |
           signalflow generate --out data/seed7 --seed 7
           signalflow run --data data/seed7
           docker compose --profile lake --profile airflow build airflow-init
           docker compose --profile lake --profile airflow run --rm airflow-init
           docker compose --profile lake --profile airflow run --rm --no-deps airflow-scheduler \
-            bash -c "airflow dags reserialize && airflow dags test signalflow_lakehouse"
+            bash -c "airflow dags reserialize && airflow dags test signalflow_lakehouse \
+                     && airflow dags test signalflow_leak_hunter"
           signalflow lake compare --database signalflow
       - name: Superset image builds
         run: docker compose --profile superset build superset

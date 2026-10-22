@@ -7,6 +7,7 @@ DATA ?= data/seed7
 SEED ?= 7
 
 .PHONY: setup up down generate run status ui test test-unit test-integration lint clean \
+	hunt cases evaluate operator \
 	stream-up stream-down stream-init stream-replay stream-silver stream-transform stream-status test-stream \
 	lake-up lake-down lake-publish lake-transform lake-compare lake-status lake-maintain test-lake \
 	airflow-up airflow-password superset-up superset-bootstrap
@@ -21,9 +22,10 @@ down:
 	docker compose --profile lite down
 
 generate:         ## deterministic dataset
-	.venv/bin/signalflow generate --out $(DATA) --seed $(SEED) --overwrite
+	.venv/bin/signalflow generate --out $(DATA) --seed $(SEED) --overwrite \
+		$(if $(DAYS),--days $(DAYS)) $(if $(SUBSCRIBERS),--subscribers $(SUBSCRIBERS))
 
-run:              ## bronze -> silver -> dbt gold
+run:              ## bronze -> silver -> dbt gold (Leak Hunter after each arrival file)
 	.venv/bin/signalflow run --data $(DATA)
 
 status:
@@ -31,6 +33,19 @@ status:
 
 ui:               ## control tower on http://127.0.0.1:8501 (needs `make run` first)
 	.venv/bin/streamlit run src/signalflow/ui/app.py
+
+# --- Revenue Leak Hunter (Phase 4); DB=<database> defaults to PGDATABASE ---
+hunt:             ## run the ten rules once and move cases through their lifecycle
+	.venv/bin/signalflow assurance hunt --database $(or $(DB),$(PGDATABASE))
+
+cases:            ## open cases, most severe first
+	.venv/bin/signalflow assurance cases --database $(or $(DB),$(PGDATABASE))
+
+evaluate:         ## offline precision/recall against the scenario ledger of $(DATA)
+	.venv/bin/python -m signalflow_eval.leak_hunter --data $(DATA) --database $(or $(DB),$(PGDATABASE))
+
+operator:         ## create or update a sign-in: make operator OPERATOR=nadia ROLE=analyst NAME="Nadia Rahman"
+	.venv/bin/signalflow operators add $(OPERATOR) --role $(or $(ROLE),viewer) $(if $(NAME),--name "$(NAME)")
 
 lint:
 	.venv/bin/ruff check src tests && .venv/bin/mypy src

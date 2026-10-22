@@ -14,133 +14,36 @@ import plotly.graph_objects as go
 import psycopg
 import streamlit as st
 
-from signalflow.ui import data
-
-# Validated light palette (dataviz skill reference instance). Categorical hues are assigned to entities in a fixed
-# order and never cycled; status colours are reserved for state and always ship with an icon and a label.
-CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
-GOOD, WARNING, SERIOUS, CRITICAL = "#0ca30c", "#fab219", "#ec835a", "#d03b3b"
-INK, INK_2, MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#fcfcfb"
-
-CHANNEL_COLOR = dict(zip(["MOBILE_WALLET", "RETAIL_AGENT", "BANK_CARD", "INTERNET_BANKING"], CATEGORICAL, strict=False))
-CATEGORY_COLOR = dict(zip(["SMARTPHONE", "TELEVISION", "REFRIGERATOR", "AIR_CONDITIONER", "WASHING_MACHINE", "FAN"],
-                          CATEGORICAL, strict=False))
-FACTORY_COLOR = {"FAC-01": CATEGORICAL[0], "FAC-02": CATEGORICAL[1]}
-ARRIVAL_COLOR = {"ON_TIME": CATEGORICAL[0], "LATE_WITHIN_WATERMARK": CATEGORICAL[3],
-                 "LATE_BEYOND_WATERMARK": CATEGORICAL[7]}
-
-KPI_BADGE = {"FINAL": ("✓", GOOD, "Final"), "PROVISIONAL": ("○", WARNING, "Provisional"),
-             "RESTATED": ("↻", SERIOUS, "Restated")}
-RISK_BADGE = {"OUT_OF_STOCK": ("✕", CRITICAL, "Out of stock"), "HIGH": ("▲", SERIOUS, "High"),
-              "MEDIUM": ("◆", WARNING, "Medium"), "LOW": ("✓", GOOD, "Low"),
-              "NO_RECENT_DEMAND": ("–", MUTED, "No recent demand")}
-
-CSS = f"""
-<style>
-  .block-container {{ padding-top: 2.2rem; max-width: 1280px; }}
-  h1, h2, h3 {{ letter-spacing: -0.01em; color: {INK}; }}
-  .sf-eyebrow {{ color: {MUTED}; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .1rem; }}
-  .sf-sub {{ color: {INK_2}; margin-top: -.4rem; margin-bottom: 1.2rem; }}
-  .sf-tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: .4rem 0 1.2rem; }}
-  .sf-tile {{ background: {SURFACE}; border: 1px solid {GRID}; border-radius: 10px; padding: 14px 16px; }}
-  .sf-tile .l {{ color: {INK_2}; font-size: .8rem; }}
-  .sf-tile .v {{ color: {INK}; font-size: 1.65rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.25; }}
-  .sf-tile .n {{ color: {MUTED}; font-size: .74rem; margin-top: 2px; }}
-  .sf-badge {{ display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: {INK}; white-space: nowrap; }}
-  .sf-dot {{ width: 9px; height: 9px; border-radius: 50%; display: inline-block; }}
-  table.sf {{ width: 100%; border-collapse: collapse; border: none !important; font-size: .86rem; font-variant-numeric: tabular-nums; }}
-  table.sf th, table.sf td {{ border-left: none !important; border-right: none !important; border-top: none !important; background: transparent; }}
-  table.sf th {{ text-align: left; color: {INK_2}; font-weight: 500; border-bottom: 1px solid {GRID}; padding: 7px 10px; }}
-  table.sf td {{ border-bottom: 1px solid #efeee9; padding: 7px 10px; color: {INK}; }}
-  table.sf td.num, table.sf th.num {{ text-align: right; }}
-  .sf-source {{ color: {MUTED}; font-size: .74rem; margin-top: -.3rem; margin-bottom: 1rem; }}
-  .sf-card {{ background: {SURFACE}; border: 1px solid {GRID}; border-radius: 10px; padding: 18px 20px; }}
-  .sf-phase {{ display: inline-block; border: 1px solid {GRID}; border-radius: 999px; padding: 2px 10px; font-size: .78rem;
-              color: {INK_2}; background: #fff; }}
-</style>
-"""
-
-
-@st.cache_data(ttl=30, show_spinner=False)
-def q(sql: str) -> pd.DataFrame:
-    return data.query(sql)
-
-
-def fmt_int(v: object) -> str:
-    return "–" if v is None or pd.isna(v) else f"{int(v):,}"  # type: ignore[call-overload]
-
-
-def fmt_bdt(v: object) -> str:
-    return "–" if v is None or pd.isna(v) else f"৳{float(v):,.2f}"  # type: ignore[arg-type]
-
-
-def fmt_ts(v: object, pattern: str = "%d %b %H:%M") -> str:
-    if v is None or pd.isna(v):
-        return "–"
-    return str(pd.Timestamp(v).tz_convert("Asia/Dhaka").strftime(pattern))
-
-
-def badge(mapping: dict[str, tuple[str, str, str]], key: str) -> str:
-    icon, color, label = mapping.get(key, ("•", MUTED, key))
-    return (f'<span class="sf-badge"><span class="sf-dot" style="background:{color}"></span>'
-            f'{html.escape(icon)} {html.escape(label)}</span>')
-
-
-def header(eyebrow: str, title: str, sub: str) -> None:
-    st.markdown(f'<div class="sf-eyebrow">{eyebrow}</div>', unsafe_allow_html=True)
-    st.markdown(f"## {title}")
-    st.markdown(f'<div class="sf-sub">{sub}</div>', unsafe_allow_html=True)
-
-
-def tiles(items: list[tuple[str, str, str]]) -> None:
-    cells = "".join(f'<div class="sf-tile"><div class="l">{html.escape(label)}</div><div class="v">{value}</div>'
-                    f'<div class="n">{html.escape(note)}</div></div>' for label, value, note in items)
-    st.markdown(f'<div class="sf-tiles">{cells}</div>', unsafe_allow_html=True)
-
-
-def source(*tables: str) -> None:
-    st.markdown(f'<div class="sf-source">Source: {", ".join(f"<code>{t}</code>" for t in tables)}</div>',
-                unsafe_allow_html=True)
-
-
-def html_table(df: pd.DataFrame, numeric: set[str] | None = None, raw: set[str] | None = None) -> None:
-    numeric, raw = numeric or set(), raw or set()
-    head = "".join(f'<th class="{"num" if c in numeric else ""}">{html.escape(c)}</th>' for c in df.columns)
-    rows = []
-    for _, r in df.iterrows():
-        cells = "".join(f'<td class="{"num" if c in numeric else ""}">{r[c] if c in raw else html.escape(str(r[c]))}</td>'
-                        for c in df.columns)
-        rows.append(f"<tr>{cells}</tr>")
-    st.markdown(f'<table class="sf"><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>',
-                unsafe_allow_html=True)
-
-
-def style(fig: go.Figure, height: int = 320, legend: bool = True, y_title: str | None = None) -> go.Figure:
-    fig.update_layout(
-        height=height, margin={"l": 8, "r": 8, "t": 36, "b": 8}, paper_bgcolor=SURFACE, plot_bgcolor=SURFACE,
-        font={"color": INK_2, "size": 12}, bargap=0.35, bargroupgap=0.08, showlegend=legend,
-        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0, "title": None, "traceorder": "normal", "font": {"color": INK_2}},
-        hoverlabel={"bgcolor": "#ffffff", "bordercolor": GRID, "font": {"color": INK}},
-    )
-    fig.update_xaxes(showgrid=False, linecolor=GRID, tickcolor=GRID)
-    if fig.data and fig.data[0].orientation != "h" and fig.data[0].type == "bar":
-        fig.update_xaxes(type="category")
-    fig.update_yaxes(gridcolor=GRID, zeroline=True, zerolinecolor=GRID, title=y_title, title_font={"color": MUTED})
-    fig.update_traces(selector={"type": "bar"}, marker_line_color=SURFACE, marker_line_width=2,
-                      marker_cornerradius=4)
-    return fig
-
-
-def chart(fig: go.Figure) -> None:
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-
-
-def missing_gold() -> bool:
-    if data.table_exists("gold.mart_telecom_revenue_daily"):
-        return False
-    st.warning("Gold tables are not built yet. Run `make run` (generate → bronze → silver → dbt) and reload.")
-    return True
-
+from signalflow.ui import auth, data, leak_hunter
+from signalflow.ui.components import (
+    ARRIVAL_COLOR,
+    CATEGORICAL,
+    CATEGORY_COLOR,
+    CHANNEL_COLOR,
+    CRITICAL,
+    CSS,
+    FACTORY_COLOR,
+    GOOD,
+    GRID,
+    INK_2,
+    KPI_BADGE,
+    MUTED,
+    RISK_BADGE,
+    SURFACE,
+    badge,
+    chart,
+    fmt_bdt,
+    fmt_int,
+    fmt_ts,
+    header,
+    html_table,
+    missing_gold,
+    provenance,
+    q,
+    source,
+    style,
+    tiles,
+)
 
 # --------------------------------------------------------------------------------------------------- pages
 
@@ -195,19 +98,32 @@ def page_overview() -> None:
         html_table(wm)
         source("ops.stream_state")
 
-    st.markdown("#### Open reconciliation signals")
-    sig = q(data.SIGNALS)
-    tiles([(r.signal, fmt_int(r.records), f"{r.domain} · " + (fmt_bdt(r.amount_bdt) if r.amount_bdt is not None
-                                                              else "quantity only"))
-           for r in sig.itertuples()])
-    st.caption("Raw rule hits from gold. Case management, evidence and exposure estimates arrive with the Revenue "
-               "Leak Hunter in Phase 4.")
+    st.markdown("#### Revenue assurance")
+    if not data.table_exists("assurance.cases") or q(data.LEAK_LAST_RUN).empty:
+        st.caption("The Leak Hunter has not run on this database yet.")
+        return
+    t = q(data.LEAK_TOTALS).iloc[0]
+    tiles([
+        ("Leak cases confirmed by rule", fmt_int(t.confirmed), f"{fmt_bdt(t.confirmed_exposure)} estimated exposure"),
+        ("Suspicious", fmt_int(t.suspicious), f"{fmt_bdt(t.suspicious_exposure)} at risk"),
+        ("Pending", fmt_int(t.pending), "within normal processing time"),
+        ("Cleared by data", fmt_int(t.auto_cleared), "delays that resolved themselves"),
+    ])
+    st.caption("Exposure is a rule-based estimate, not an audited loss. Details, evidence and actions: Revenue Leak "
+               "Hunter.")
 
 
 def page_telecom() -> None:
-    header("Business", "Telecom operations", "Recharge, subscriber and usage KPIs from the telecom gold marts.")
+    header("Digital twin", "Telecom operations",
+           "The operator's current state, rebuilt from processed events: what happened in the last 24 hours of stream "
+           "time, and the reconciled daily KPIs from the gold marts.")
     if missing_gold():
         return
+    clock = q(data.STREAMS).set_index("stream")
+    if "telecom" in clock.index:
+        st.markdown(f'<div class="sf-meta">State as of the telecom event-time clock: '
+                    f'{fmt_ts(clock.loc["telecom", "max_event_time"], "%d %b %Y %H:%M")} Dhaka. Turn on live refresh in '
+                    f'the sidebar while the stream runs.</div>', unsafe_allow_html=True)
     ds = q(data.DAY_STATUS)
     subs = q(data.ACTIVE_SUBSCRIBERS)
     latest = subs[subs.business_date == subs.business_date.max()]
@@ -217,6 +133,52 @@ def page_telecom() -> None:
         ("Active subscribers", fmt_int(latest.active.sum()), f"as of {latest.business_date.max()}"),
         ("Data served", f"{q(data.USAGE_BY_REGION).data_gb.astype(float).sum():,.1f} GB", "all regions"),
     ])
+    st.markdown("#### Last 24 hours of stream time")
+    provenance("fact")
+    h = q(data.TWIN_TELECOM_LAST24H)
+    hour = pd.to_datetime(h.hour, utc=True).dt.tz_convert("Asia/Dhaka")
+    a, b = st.columns(2)
+    with a:
+        st.markdown("##### Recharges per hour")
+        fig = go.Figure()
+        fig.add_bar(x=hour, y=h.recharges.astype(float), name="Successful", marker_color=CATEGORICAL[0],
+                    hovertemplate="%{x|%d %b %H:00}<br>successful: %{y:,}<extra></extra>")
+        fig.add_bar(x=hour, y=h.failed.astype(float), name="Failed", marker_color=CATEGORICAL[1],
+                    hovertemplate="%{x|%d %b %H:00}<br>failed: %{y:,}<extra></extra>")
+        fig.update_layout(barmode="stack")
+        chart(style(fig, height=260, y_title="recharges").update_xaxes(type="date", tickformat="%H:%M"))
+    with b:
+        st.markdown("##### Mobile data served per hour")
+        fig = go.Figure(go.Scatter(x=hour, y=h.data_gb.astype(float), mode="lines+markers", name="Data",
+                                   line={"color": CATEGORICAL[2], "width": 2},
+                                   marker={"size": 8, "line": {"color": SURFACE, "width": 2}},
+                                   hovertemplate="%{x|%d %b %H:00}<br>%{y:,.2f} GB<extra></extra>"))
+        chart(style(fig, height=260, legend=False, y_title="GB").update_xaxes(type="date", tickformat="%H:%M"))
+    source("silver.events (telecom, event time within 24 h of the stream clock)")
+
+    a, b = st.columns(2)
+    with a:
+        st.markdown("#### Payment success rate by channel")
+        provenance("derived")
+        ch = q(data.TWIN_CHANNEL_SUCCESS)
+        html_table(pd.DataFrame({"Channel": ch.channel.str.replace("_", " ").str.title(),
+                                 "Attempts": [fmt_int(v) for v in ch.attempts],
+                                 "Successful": [fmt_int(v) for v in ch.successful],
+                                 "Success rate": [f"{float(v):.2%}" for v in ch.success_rate]}),
+                   numeric={"Attempts", "Successful", "Success rate"})
+        source("gold.mart_telecom_revenue_daily")
+    with b:
+        st.markdown("#### Bundle revenue by package (captured payments)")
+        provenance("derived")
+        pk = q(data.TWIN_PACKAGE_REVENUE)
+        fig = go.Figure(go.Bar(x=pk.revenue_bdt.astype(float), y=pk.package_name, orientation="h",
+                               marker_color=CATEGORICAL[0], customdata=pk.activations,
+                               hovertemplate="%{y}: ৳%{x:,.2f} · %{customdata:,} activations<extra></extra>"))
+        fig.update_yaxes(autorange="reversed", gridcolor=SURFACE)
+        fig.update_xaxes(showgrid=True, gridcolor=GRID, title="BDT", title_font={"color": MUTED})
+        chart(style(fig, legend=False, height=260))
+        source("gold.fct_package_purchase", "gold.dim_package")
+
     a, b = st.columns(2)
     with a:
         st.markdown("#### Recharge revenue by region")
@@ -237,8 +199,9 @@ def page_telecom() -> None:
         chart(style(fig, legend=False))
         source("gold.mart_telecom_usage_daily")
 
-    st.markdown("#### Recharge outcomes by channel and day")
+    st.markdown("#### Recharge outcomes by channel, last three business days")
     rev = q(data.REVENUE_DAILY)
+    rev = rev[rev.business_date.isin(sorted(rev.business_date.unique())[-3:])]
     view = pd.DataFrame({
         "Day": rev.business_date.astype(str), "Channel": rev.channel.str.replace("_", " ").str.title(),
         "Gross": [fmt_bdt(v) for v in rev.gross_bdt], "Successful": [fmt_int(v) for v in rev.successful],
@@ -249,10 +212,16 @@ def page_telecom() -> None:
 
 
 def page_manufacturing() -> None:
-    header("Business", "Manufacturing and dealer network",
-           "Inventory position, dealer sales, production and receivables from the manufacturing gold marts.")
+    header("Digital twin", "Manufacturing and dealer network",
+           "Inventory, shipments, production, dealer sales and receivables, rebuilt from processed ERP, WMS and MES "
+           "events.")
     if missing_gold():
         return
+    clock = q(data.STREAMS).set_index("stream")
+    if "mfg" in clock.index:
+        st.markdown(f'<div class="sf-meta">State as of the manufacturing event-time clock: '
+                    f'{fmt_ts(clock.loc["mfg", "max_event_time"], "%d %b %Y %H:%M")} Dhaka.</div>',
+                    unsafe_allow_html=True)
     inv = q(data.INVENTORY)
     invoices = q(data.INVOICES)
     sales = q(data.MFG_SALES)
@@ -291,7 +260,22 @@ def page_manufacturing() -> None:
         chart(style(fig, y_title="units"))
         source("gold.mart_mfg_production_daily")
 
+    st.markdown("#### Shipment progress by warehouse")
+    provenance("derived")
+    sh = q(data.TWIN_SHIPMENTS)
+    fig = go.Figure()
+    for col, label, color in (("delivered", "Delivered", CATEGORICAL[0]), ("in_transit", "In transit", CATEGORICAL[3]),
+                              ("delayed", "In transit > 60 h", CRITICAL)):
+        fig.add_bar(x=sh.warehouse_id, y=sh[col].astype(float), name=label, marker_color=color,
+                    hovertemplate="%{x}<br>%{fullData.name}: %{y:,} shipments<extra></extra>")
+    fig.update_layout(barmode="stack")
+    chart(style(fig, height=260, y_title="shipments"))
+    st.caption("Delivery normally takes 18 to 60 hours after dispatch; older open shipments are flagged as delayed. "
+               f"Average transit so far: {', '.join(f'{w} {float(t):.0f} h' for w, t in zip(sh.warehouse_id, sh.avg_transit_hours, strict=True) if not pd.isna(t))}.")
+    source("gold.fct_shipment", "ops.stream_state")
+
     st.markdown("#### Inventory risk (lowest days of cover first)")
+    provenance("projection")
     top = inv.head(12)
     view = pd.DataFrame({
         "Warehouse": top.warehouse_id, "SKU": top.sku, "Category": top.category.str.replace("_", " ").str.title(),
@@ -388,23 +372,6 @@ def page_pipeline() -> None:
     st.dataframe(qs, hide_index=True, use_container_width=True,
                  column_config={"details": st.column_config.TextColumn("details", width="large")})
     source("silver.quarantine", "bronze.raw_events")
-
-
-def page_signals() -> None:
-    header("Trust", "Reconciliation signals",
-           "Rule hits computed in gold by joining what each business system says happened.")
-    st.markdown('<span class="sf-phase">Case management, evidence and exposure: Phase 4</span>', unsafe_allow_html=True)
-    st.markdown("")
-    sig = q(data.SIGNALS)
-    view = pd.DataFrame({"Signal": sig.signal, "Domain": sig.domain.str.title(),
-                         "Records": [fmt_int(v) for v in sig.records],
-                         "Amount involved": [fmt_bdt(v) if v is not None else "quantity only" for v in sig.amount_bdt]})
-    html_table(view, numeric={"Records", "Amount involved"})
-    source("gold.fct_channel_settlement", "gold.fct_recharge", "gold.fct_package_purchase", "gold.fct_invoice",
-           "gold.fct_return", "gold.fct_inventory_movement")
-    st.caption("These are raw signals, not confirmed leaks. A partially paid invoice may simply be early in its "
-               "payment cycle. The Phase 4 Revenue Leak Hunter turns them into cases with a status, the evidence "
-               "rows, an exposure estimate and a precision/recall check against the generator's injected-scenario labels.")
 
 
 def page_lakehouse() -> None:
@@ -511,14 +478,10 @@ def main() -> None:
         "Operate": [st.Page(page_overview, title="Overview", icon=":material/dashboard:", default=True),
                     st.Page(page_telecom, title="Telecom", url_path="telecom", icon=":material/cell_tower:"),
                     st.Page(page_manufacturing, title="Manufacturing", url_path="manufacturing", icon=":material/factory:")],
-        "Trust": [st.Page(page_pipeline, title="Pipeline observatory", url_path="pipeline", icon=":material/monitor_heart:"),
-                  st.Page(page_signals, title="Reconciliation signals", url_path="signals", icon=":material/balance:")],
+        "Trust": [st.Page(leak_hunter.page, title="Revenue Leak Hunter", url_path="leak-hunter", icon=":material/search_insights:"),
+                  st.Page(page_pipeline, title="Pipeline observatory", url_path="pipeline", icon=":material/monitor_heart:")],
         "Platform": [st.Page(page_lakehouse, title="Lakehouse", url_path="lakehouse", icon=":material/database:")],
         "Planned": [
-            st.Page(planned("Phase 4", "Revenue Leak Hunter", [
-                "5 telecom and 5 manufacturing leak scenarios as cases: pending, suspicious, confirmed by rule, resolved",
-                "Evidence rows and BDT exposure per case", "Detection precision and recall against the injected-scenario labels"]),
-                title="Revenue Leak Hunter", url_path="leak-hunter", icon=":material/search_insights:"),
             st.Page(planned("Phase 5", "Chaos Lab", [
                 "Incidents A to E: duplicate storm, late surge, schema break, streaming interruption, stock discrepancy",
                 "Start, observe, recover and verify each one, with an incident report"]), title="Chaos Lab", url_path="chaos-lab", icon=":material/science:"),
@@ -538,7 +501,13 @@ def main() -> None:
         st.markdown("**SignalFlow X**")
         st.caption("Enterprise data nervous system · synthetic data · Postgres + Iceberg lake")
         st.caption(f"Rendered {pd.Timestamp.now(tz='Asia/Dhaka').strftime('%d %b %Y %H:%M')} Dhaka")
-    nav.run()
+        st.toggle("Live refresh (every 15 s)", key="live", help="Re-query the database while the stream runs. "
+                  "Pages show processed events only; nothing on screen is simulated in the browser.")
+        auth.sidebar_panel()
+    if st.session_state.get("live"):
+        st.fragment(run_every="15s")(nav.run)()
+    else:
+        nav.run()
 
 
 main()

@@ -17,6 +17,8 @@ pasted from real runs, with date and commit.
 | Streaming units (P2) | pytest | no | topic routing, wrapper parsing, connector configs carry no secrets, arrival-time precedence | `tests/unit/test_streaming_units.py` |
 | Lake + differential (P3) | pytest `-m lake` + compose `lake` profile | Postgres, SeaweedFS, Trino, Java 17+ | incremental publication equals Postgres per table; every Gold model identical on Postgres and Trino; SIGKILL mid-write and exit between tables; compaction keeps data | `tests/lake/` |
 | Lakehouse units (P3) | pytest | no | table specs select their high-water mark, no Postgres-only types; differential normalisation | `tests/unit/test_lakehouse_units.py` |
+| Leak Hunter acceptance (P4) | pytest `-m integration` | Postgres | 11-day dataset hunted after every file: no false confirmation, every leak past its horizon confirmed, every delayed billing seen as suspicious then cleared, idempotent re-run, cadence-independent final state, rollback of a failed hunt, role checks and audit of analyst actions | `tests/integration/test_phase4_assurance.py` |
+| Leak Hunter units (P4) | pytest | no | rule files return the shared columns; status boundaries; horizons exceed every generator delay; case ids; scrypt hashing; role order; detection never imports `signalflow_eval`; evaluation counting | `tests/unit/test_assurance_units.py` |
 | Chaos scenarios (P5) | pytest | full | each incident's expected behaviour, as JSON incident reports | planned |
 | Benchmarks (P6) | script | full | measured throughput / latency / recovery; not pass/fail | planned |
 
@@ -25,6 +27,11 @@ pasted from real runs, with date and commit.
 The generator knows what it injected. It writes `truth/manifest.json` (expected unique valid event ids, expected
 quarantine count, revenue per business date and channel in poisha, expected stock per warehouse/SKU) and
 `truth/anomalies.jsonl`. Tests compare pipeline outputs with these. Pipeline code cannot read them (isolation test).
+
+The Leak Hunter is evaluated the same way, by a separate package (`src/signalflow_eval`) that matches cases to the
+ledger and records precision and recall per rule in `assurance.evaluation_runs`. Detection code never imports it
+(unit test). The ledger also lists *benign* scenarios (billing delayed by up to 20 h, dealers paying up to 3 days
+late); the evaluation fails if any of them was ever confirmed.
 
 ## Determinism
 

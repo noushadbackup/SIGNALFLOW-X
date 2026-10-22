@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 from datetime import UTC, datetime, timedelta
 
@@ -73,7 +74,13 @@ def test_role_order() -> None:
 
 
 def test_detection_code_never_imports_the_evaluation_package() -> None:
-    offenders = [str(p) for p in (REPO_ROOT / "src" / "signalflow").rglob("*.py") if "signalflow_eval" in p.read_text()]
+    offenders = []
+    for path in (REPO_ROOT / "src" / "signalflow").rglob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            names = ([a.name for a in node.names] if isinstance(node, ast.Import)
+                     else [node.module or ""] if isinstance(node, ast.ImportFrom) else [])
+            if any(n.split(".")[0] == "signalflow_eval" for n in names):
+                offenders.append(f"{path}:{node.lineno}")
     assert offenders == []
 
 

@@ -92,6 +92,7 @@ TABLES: tuple[TableSpec, ...] = (
 HWM_PROPERTY = "signalflow.hwm"
 CONTENT_PROPERTY = "signalflow.content-md5"
 SOURCE_PROPERTY = "signalflow.source-db"
+SOURCE_INSTANCE_PROPERTY = "signalflow.source-instance"  # changes when the source database is recreated
 
 
 def by_key(key: str) -> TableSpec:

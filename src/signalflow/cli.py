@@ -161,7 +161,7 @@ def _cmd_lake(args: argparse.Namespace) -> dict[str, Any]:
     if args.action == "drop":
         if not args.yes:
             raise SystemExit("drop deletes every table under SIGNALFLOW_LAKE_PREFIX; add --yes to confirm")
-        return {"dropped_namespaces": admin.drop_namespaces(settings)}
+        return {"dropped_namespaces": admin.drop_namespaces(settings, allow_main_lake=args.include_main_lake)}
     raise SystemExit(f"unknown lake action {args.action}")
 
 
@@ -303,6 +303,8 @@ def main(argv: list[str] | None = None) -> int:
     lk.add_argument("--master", default="local[2]", help="Spark master for publish/maintain")
     lk.add_argument("--retain-last", type=int, default=50, help="maintain: snapshots always kept per table")
     lk.add_argument("--yes", action="store_true")
+    lk.add_argument("--include-main-lake", action="store_true",
+                    help="drop: also drop the unprefixed lake (e.g. after rebuilding the demo database)")
     lk.set_defaults(func=_cmd_lake)
 
     asr = sub.add_parser("assurance", help="Revenue Leak Hunter: run rules, list and act on cases")

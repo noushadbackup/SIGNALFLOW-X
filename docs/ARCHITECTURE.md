@@ -19,7 +19,7 @@ flowchart LR
     BR["Bronze<br/>verbatim records"] --> SV["Silver<br/>contract-valid, deduped, event-time classified"]
     BR --> Q["Quarantine"]
     SV --> GD["Gold<br/>dimensional model + marts"]
-    GD --> RA["Revenue Leak Hunter (Phase 4)"]
+    SV --> RA["Revenue Leak Hunter (Phase 4, ADR-0010)"]
   end
   GD --> UI["Control tower (Streamlit) · Superset"]
   RA --> UI
@@ -173,6 +173,15 @@ flowchart LR
   PR["Prometheus"] --> GF["Grafana"]
   K & SS & TR -.metrics.-> PR
 ```
+
+### Revenue assurance (Phase 4)
+
+The Leak Hunter reads committed Silver in the same Postgres database, never the lake, so a case can be opened
+minutes after the evidence lands. It runs after every arrival file in the lite pipeline and every 10 minutes from
+Airflow on the streaming database. Case ages are measured on the stream's event-time clock; a gap is confirmed only
+after the domain's late-data horizon (ADR-0010). Cases, their history, operators and the audit log live in the
+`assurance` and `ops` schemas; the control tower reads them and writes analyst actions through
+`signalflow.assurance.cases`, which checks the operator's role first.
 
 Key decisions are recorded as ADRs in [`docs/adr/`](adr).
 

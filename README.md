@@ -14,7 +14,8 @@ replay-safe processing, event-time correctness, reconciliation and tested failur
 | 1 | Generator, Postgres medallion, ingestion, dbt models, validation, E2E test | ✅ done — [report](docs/reports/PHASE1_REPORT.md) |
 | 2 | Kafka (KRaft), ERP outbox + Debezium CDC, Spark Structured Streaming Bronze/Silver, kill/restart tests | ✅ done — [report](docs/reports/PHASE2_REPORT.md) |
 | 3 | Iceberg on S3-compatible storage, Trino, dbt-trino, lite-vs-lake differential test, Airflow, Superset | ✅ done — [report](docs/reports/PHASE3_REPORT.md) |
-| 4–6 | Revenue Leak Hunter, Chaos Lab / Time Machine, control tower | planned — see [plan](docs/IMPLEMENTATION_PLAN.md) |
+| 4 | Revenue Leak Hunter (10 SQL rules, event-time case lifecycle, analyst actions with roles and audit), digital twin pages | ✅ done — [report](docs/reports/PHASE4_REPORT.md) |
+| 5–6 | Chaos Lab / Time Machine / lineage / Prometheus, full control tower and benchmarks | planned — see [plan](docs/IMPLEMENTATION_PLAN.md) |
 
 ## Documentation
 
@@ -34,12 +35,16 @@ src/signalflow/
   streaming/               topics, telecom producer, Debezium connectors, Spark job, Postgres sink, lifecycle
   lakehouse/               Spark publisher to Iceberg, Trino helpers, Gold differential check, maintenance
   bi/                      Superset assets as code (connection, datasets, charts, dashboard)
+  assurance/               Revenue Leak Hunter: rule catalogue, hunter (case lifecycle), analyst case actions
+  security.py              operators, roles, scrypt password hashes, permission checks, audit log
   erp.py                   simulated ERP: business row + outbox row per transaction
-  ui/                      Streamlit control tower (preview)
+  ui/                      Streamlit control tower (overview, digital twins, Leak Hunter, observatory, lake)
+src/signalflow_eval/       offline evaluation against the generator's scenario ledger (never imported by detection)
   pipeline.py, cli.py      orchestration steps and the `signalflow` command
-sql/migrations/, sql/erp/  Postgres DDL (bronze / silver / ops / ref; ERP schema)
+sql/migrations/, sql/erp/  Postgres DDL (bronze / silver / ops / ref / assurance; ERP schema)
+sql/assurance/            the ten Leak Hunter rules, one reviewed SQL file each
 docker/                    Connect + Debezium, Spark, Airflow and Superset images; Trino catalog; SeaweedFS
-airflow/dags/              lakehouse refresh and maintenance DAGs (thin wrappers around the CLI)
+airflow/dags/              lakehouse refresh, maintenance and leak-hunter DAGs (thin wrappers around the CLI)
 scripts/fetch_artifacts.sh pinned, checksum-verified JVM artifacts
 dbt/                       staging views, dimensions (incl. SCD2), facts, marts, data tests
 tests/unit, tests/integration, tests/stream, tests/lake
@@ -55,13 +60,19 @@ cp .env.example .env      # pick a local password
 make setup                # venv + dependencies
 make up                   # PostgreSQL 16, bound to 127.0.0.1
 make generate             # deterministic dataset (seed 7): ~25k events, 3 days, both domains
-make run                  # bronze -> silver -> dbt gold (100 models and data tests)
+make run                  # bronze -> silver -> dbt gold (100 models and data tests); Leak Hunter after each file
 make status               # counts, quarantine reasons, stream watermarks
-make ui                   # control tower preview on http://127.0.0.1:8501 (Streamlit, read-only)
-make test                 # ruff, mypy, 105 unit tests, 15 end-to-end tests on a real database
+make evaluate             # Leak Hunter precision/recall against the scenario ledger (offline evaluation package)
+make operator OPERATOR=nadia ROLE=analyst  # create a sign-in for case actions (password prompted, scrypt-hashed)
+make ui                   # control tower on http://127.0.0.1:8501 (Streamlit; sign in to act on cases)
+make test                 # ruff, mypy, unit tests, end-to-end tests on a real database
 ```
 
-What to look at next: [Phase 1 report](docs/reports/PHASE1_REPORT.md) has the measured results and demo queries.
+For the Leak Hunter, a longer dataset shows the whole lifecycle (leaks are confirmed only after the late-data horizon):
+`make generate DATA=data/seed7-12d DAYS=12 SUBSCRIBERS=1000 && make run DATA=data/seed7-12d`.
+
+What to look at next: [Phase 1 report](docs/reports/PHASE1_REPORT.md) has the measured results and demo queries;
+[Phase 4 report](docs/reports/PHASE4_REPORT.md) has the Leak Hunter's evaluation.
 
 ## Quickstart (stream profile: Kafka + Debezium + Spark)
 
@@ -111,8 +122,13 @@ make superset-up && make superset-bootstrap   # Superset 5.0 on 127.0.0.1:58088,
 | Gold built by dbt on Trino/Iceberg is identical, row by row, to Gold on Postgres (all 23 models) | same test, and `signalflow lake compare` in the Airflow DAG |
 | A publisher killed mid-write or between tables leaves no partial table and no duplicate on recovery | `test_publisher_killed_mid_write_and_between_tables_publishes_each_row_once` |
 | Compaction rewrites files, not data | `test_incremental_publication_then_dbt_on_trino_equals_lite_gold` (fingerprint before/after) |
+| No delayed-but-complete transaction is ever confirmed as a leak; every leak whose horizon has passed is confirmed | `test_delayed_but_normal_transactions_are_never_confirmed`, `test_no_false_confirmation_and_every_confirmable_leak_is_confirmed` |
+| Case status depends on the data and the event-time clock, not on when the hunter ran; a re-run changes nothing | `test_final_open_cases_do_not_depend_on_hunting_cadence`, `test_hunter_is_idempotent` |
+| A failed hunt leaves the previous case state | `test_failed_hunt_rolls_back` |
+| Case actions need the analyst role, are versioned, and every attempt (incl. denied) is audited | `test_analyst_actions_need_a_role_are_versioned_and_audited` |
+| Detection never reads the scenario ledger | `test_detection_code_never_imports_the_evaluation_package`, Phase 1 isolation test |
 
 Not claimed: end-to-end exactly-once across systems (Kafka → Spark is at-least-once; the Postgres result is
 effectively-once, see ADR-0008), production readiness of a single-node, unreplicated Kafka deployment, sub-minute
 lake freshness (the lake is refreshed by Airflow every 30 minutes, ADR-0009), or authentication on Trino (local stack,
-loopback only).
+loopback only). Leak Hunter exposure figures are rule-based estimates of money at risk, not audited losses.

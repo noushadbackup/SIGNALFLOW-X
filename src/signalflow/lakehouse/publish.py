@@ -21,7 +21,7 @@ import psycopg
 
 from ..log import get_logger
 from .settings import CATALOG, LakeSettings
-from .tables import CONTENT_PROPERTY, HWM_PROPERTY, SOURCE_PROPERTY, TABLES, TableSpec
+from .tables import CONTENT_PROPERTY, HWM_PROPERTY, SOURCE_INSTANCE_PROPERTY, SOURCE_PROPERTY, TABLES, TableSpec
 
 log = get_logger(__name__)
 ROWS_PER_JDBC_PARTITION = 50_000
@@ -162,16 +162,28 @@ class SourceMismatch(RuntimeError):
     pass
 
 
+def source_instance(conn: psycopg.Connection) -> str:
+    """Identity of this incarnation of the source database: its OID and when its first migration ran. A database
+    dropped and recreated under the same name gets a new value, and its identity columns start again from 1."""
+    row = conn.execute("""SELECT (SELECT oid FROM pg_database WHERE datname = current_database())::text || '@'
+                                 || (SELECT min(applied_at) FROM ops.schema_migrations)::text""").fetchone()
+    return str(row[0]) if row and row[0] else ""
+
+
 def publish_table(spark: Any, settings: LakeSettings, database: str, spec: TableSpec,
-                  conn: psycopg.Connection) -> TableResult:
+                  conn: psycopg.Connection, instance: str = "") -> TableResult:
     t0 = time.perf_counter()
     ident = _identifier(settings, spec)
+    mismatch = "use another SIGNALFLOW_LAKE_PREFIX or drop the lake namespace first"
     if spark.catalog.tableExists(ident):
         # Identity values from two databases overlap, so mixing sources would silently corrupt the table.
         previous = last_summary_value(spark, ident, SOURCE_PROPERTY)
         if previous is not None and previous != database:
-            raise SourceMismatch(f"{ident} was published from database {previous!r}, not {database!r}; use another "
-                                 "SIGNALFLOW_LAKE_PREFIX or drop the lake namespace first")
+            raise SourceMismatch(f"{ident} was published from database {previous!r}, not {database!r}; {mismatch}")
+        previous_instance = last_summary_value(spark, ident, SOURCE_INSTANCE_PROPERTY)
+        if previous_instance and instance and previous_instance != instance:
+            raise SourceMismatch(f"{ident} was published from an earlier incarnation of database {database!r} "
+                                 f"({previous_instance}, now {instance}); {mismatch}")
     if spec.mode == "append":
         assert spec.hwm
         inner = f"SELECT * FROM ({spec.select}) s"
@@ -180,6 +192,11 @@ def publish_table(spark: Any, settings: LakeSettings, database: str, spec: Table
         row = conn.execute(f"SELECT max({spec.hwm}), count(*) FILTER (WHERE {spec.hwm} > %s) FROM ({spec.select}) s",
                            (before,)).fetchone()
         upper, pending = (row[0], row[1]) if row else (None, 0)
+        if before and (upper is None or upper < before):
+            # the source's high-water mark went backwards: it was recreated or reset (this also catches lakes
+            # published before the instance property existed)
+            raise SourceMismatch(f"{ident} holds rows up to {spec.hwm} {before}, but the source now ends at {upper}; "
+                                 f"{mismatch}")
         if not exists:
             _create_if_missing(spark, ident, spec, _jdbc(spark, settings, database, inner + " WHERE false"))
         if upper is None or upper <= before or pending == 0:
@@ -191,6 +208,7 @@ def publish_table(spark: Any, settings: LakeSettings, database: str, spec: Table
         (df.writeTo(ident)
          .option(f"snapshot-property.{HWM_PROPERTY}", str(upper))
          .option(f"snapshot-property.{SOURCE_PROPERTY}", database)
+         .option(f"snapshot-property.{SOURCE_INSTANCE_PROPERTY}", instance)
          .append())
         return TableResult(spec.key, spec.mode, int(pending), before, int(upper), current_snapshot_id(spark, ident),
                            None, round(time.perf_counter() - t0, 2))
@@ -210,6 +228,7 @@ def publish_table(spark: Any, settings: LakeSettings, database: str, spec: Table
     (df.writeTo(ident)
      .option(f"snapshot-property.{CONTENT_PROPERTY}", digest)
      .option(f"snapshot-property.{SOURCE_PROPERTY}", database)
+     .option(f"snapshot-property.{SOURCE_INSTANCE_PROPERTY}", instance)
      .overwrite(F.lit(True)))
     return TableResult(spec.key, spec.mode, rows, None, None, current_snapshot_id(spark, ident), None,
                        round(time.perf_counter() - t0, 2))
@@ -228,10 +247,11 @@ def publish(spark: Any, settings: LakeSettings, database: str, only: list[str] |
     ensure_namespaces(spark, settings)
     results: list[TableResult] = []
     with psycopg.connect(dbname=database, autocommit=True, application_name="signalflow-lake") as conn:
+        instance = source_instance(conn)
         for spec in TABLES:
             if only and spec.key not in only:
                 continue
-            res = publish_table(spark, settings, database, spec, conn)
+            res = publish_table(spark, settings, database, spec, conn, instance)
             log.info("table published", extra=asdict(res))
             results.append(res)
             _fault_exit_after(spec.key)

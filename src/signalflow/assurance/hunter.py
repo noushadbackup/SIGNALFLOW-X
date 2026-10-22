@@ -124,8 +124,8 @@ def hunt(conn: psycopg.Connection, rules: tuple[Rule, ...] = RULES) -> HuntResul
             result.per_rule[rule.rule_id] = {"observed": len(seen), "as_of": clock.isoformat(), **dict(counts)}
         result.run_id = int(conn.execute(  # type: ignore[index]
             """INSERT INTO assurance.hunter_runs (as_of, observed, opened, status_changes, auto_cleared, reopened,
-                                                  per_rule, started_at)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING run_id""",
+                                                  per_rule, started_at, finished_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, clock_timestamp()) RETURNING run_id""",
             (Jsonb(result.as_of), result.observed, result.opened, result.status_changes, result.auto_cleared,
              result.reopened, Jsonb(result.per_rule), started)).fetchone()[0])
     log.info("leak hunter run", extra={k: v for k, v in result.as_dict().items() if k != "per_rule"})

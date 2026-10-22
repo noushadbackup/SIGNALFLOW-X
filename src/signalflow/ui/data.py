@@ -111,28 +111,6 @@ SELECT settlement_status, count(*) AS invoices, sum(amount_bdt) AS invoiced_bdt,
 FROM gold.fct_invoice GROUP BY 1 ORDER BY 1
 """
 
-SIGNALS = """
-SELECT 'Channel settlement differs from expected' AS signal, 'telecom' AS domain, count(*) AS records,
-       coalesce(sum(abs(difference_bdt)), 0) AS amount_bdt
-FROM gold.fct_channel_settlement WHERE difference_bdt <> 0
-UNION ALL
-SELECT 'Successful recharge with no billing record', 'telecom', count(*), coalesce(sum(amount_bdt), 0)
-FROM gold.fct_recharge WHERE is_success AND billing_records = 0
-UNION ALL
-SELECT 'Bundle activated, payment capture failed', 'telecom', count(*), coalesce(sum(price_bdt), 0)
-FROM gold.fct_package_purchase WHERE activation_status = 'ACTIVATED' AND capture_status = 'FAILED'
-UNION ALL
-SELECT 'Invoice partially paid', 'manufacturing', count(*), coalesce(sum(outstanding_bdt), 0)
-FROM gold.fct_invoice WHERE settlement_status = 'PARTIALLY_PAID'
-UNION ALL
-SELECT 'Return refunded more than once', 'manufacturing', count(*), coalesce(sum(refunded_bdt - approved_refund_bdt), 0)
-FROM gold.fct_return WHERE refund_count > 1
-UNION ALL
-SELECT 'Inventory adjustment without approval', 'manufacturing', count(*), NULL
-FROM gold.fct_inventory_movement WHERE authorization_status = 'NO_APPROVAL_FOUND'
-"""
-
-
 # --- lakehouse (Phase 3) -------------------------------------------------------------------------------------------
 LAKE_PUBLISH_RUNS = """
 SELECT published_at, table_name, mode, rows_written, hwm_before, hwm_after, skipped, seconds
@@ -178,3 +156,147 @@ def lake_snapshots(layer: str, table: str) -> pd.DataFrame:
                CAST(coalesce(element_at(summary, 'total-records'), '0') AS bigint) AS total_records,
                element_at(summary, 'signalflow.hwm') AS hwm
         FROM lake.{ns}."{table}$snapshots" ORDER BY committed_at""")
+
+
+# --- Revenue Leak Hunter (Phase 4) ---------------------------------------------------------------------------------
+LEAK_LAST_RUN = """
+SELECT run_id, as_of ->> 'telecom' AS telecom_clock, as_of ->> 'mfg' AS mfg_clock, finished_at,
+       (SELECT count(*) FROM assurance.hunter_runs) AS runs
+FROM assurance.hunter_runs ORDER BY run_id DESC LIMIT 1
+"""
+
+LEAK_TOTALS = """
+SELECT count(*) FILTER (WHERE status = 'PENDING') AS pending,
+       count(*) FILTER (WHERE status = 'SUSPICIOUS') AS suspicious,
+       count(*) FILTER (WHERE status = 'CONFIRMED_BY_RULE') AS confirmed,
+       count(*) FILTER (WHERE resolution = 'AUTO_CLEARED') AS auto_cleared,
+       count(*) FILTER (WHERE status = 'RESOLVED' AND resolution <> 'AUTO_CLEARED') AS analyst_resolved,
+       coalesce(sum(exposure_bdt) FILTER (WHERE status = 'CONFIRMED_BY_RULE'), 0) AS confirmed_exposure,
+       coalesce(sum(exposure_bdt) FILTER (WHERE status = 'SUSPICIOUS'), 0) AS suspicious_exposure,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM resolved_as_of - first_detected_as_of) / 3600)
+           FILTER (WHERE resolution = 'AUTO_CLEARED') AS median_hours_to_clear
+FROM assurance.cases
+"""
+
+# Case state per business date of the anchoring transaction; resolved cases split by who resolved them.
+LEAK_TREND = """
+SELECT business_date, domain,
+       CASE WHEN status <> 'RESOLVED' THEN status
+            WHEN resolution = 'AUTO_CLEARED' THEN 'CLEARED_BY_DATA' ELSE 'RESOLVED_BY_ANALYST' END AS state,
+       count(*) AS cases
+FROM assurance.cases GROUP BY 1, 2, 3 ORDER BY 1, 2, 3
+"""
+
+LEAK_BY_UNIT = """
+SELECT business_unit, domain, status, count(*) AS cases, sum(exposure_bdt) AS exposure_bdt
+FROM assurance.cases WHERE status IN ('SUSPICIOUS', 'CONFIRMED_BY_RULE')
+GROUP BY 1, 2, 3 ORDER BY 1
+"""
+
+LEAK_RULES = """
+SELECT r.rule_id, r.domain, r.title, r.exposure_kind, r.expected_within::text AS expected_within,
+       r.confirm_after::text AS confirm_after,
+       count(c.case_id) FILTER (WHERE c.status = 'PENDING') AS pending,
+       count(c.case_id) FILTER (WHERE c.status = 'SUSPICIOUS') AS suspicious,
+       count(c.case_id) FILTER (WHERE c.status = 'CONFIRMED_BY_RULE') AS confirmed,
+       count(c.case_id) FILTER (WHERE c.resolution = 'AUTO_CLEARED') AS auto_cleared,
+       count(c.case_id) FILTER (WHERE c.status = 'RESOLVED' AND c.resolution <> 'AUTO_CLEARED') AS analyst_resolved,
+       coalesce(sum(c.exposure_bdt) FILTER (WHERE c.status IN ('SUSPICIOUS', 'CONFIRMED_BY_RULE')), 0) AS exposure_bdt,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM c.resolved_as_of - c.first_detected_as_of) / 3600)
+           FILTER (WHERE c.resolution = 'AUTO_CLEARED') AS median_hours_to_clear,
+       max(extract(epoch FROM c.resolved_as_of - c.first_detected_as_of) / 3600)
+           FILTER (WHERE c.resolution = 'AUTO_CLEARED') AS max_hours_to_clear
+FROM assurance.rules r LEFT JOIN assurance.cases c USING (rule_id)
+GROUP BY 1, 2, 3, 4, 5, 6 ORDER BY 1
+"""
+
+# Largest lateness actually observed per stream, to check against the late-data horizon.
+OBSERVED_LATENESS = """
+SELECT stream, max(lateness_seconds) / 3600.0 AS max_lateness_hours, count(*) AS late_events
+FROM silver.events WHERE arrival_class <> 'ON_TIME' GROUP BY 1 ORDER BY 1
+"""
+
+LEAK_CASES = """
+SELECT case_id, rule_id, domain, status, resolution, business_unit, business_date, anchor_time, exposure_bdt,
+       summary, assignee, version, first_detected_as_of, confirmed_as_of, resolved_as_of, last_evaluated_as_of
+FROM assurance.cases
+WHERE (%(domain)s::text IS NULL OR domain = %(domain)s)
+  AND (cardinality(%(states)s::text[]) = 0
+       OR (CASE WHEN status <> 'RESOLVED' THEN status
+                WHEN resolution = 'AUTO_CLEARED' THEN 'CLEARED_BY_DATA' ELSE 'RESOLVED_BY_ANALYST' END)
+          = ANY(%(states)s::text[]))
+  AND (%(rule)s::text IS NULL OR rule_id = %(rule)s)
+ORDER BY CASE status WHEN 'CONFIRMED_BY_RULE' THEN 0 WHEN 'SUSPICIOUS' THEN 1 WHEN 'PENDING' THEN 2 ELSE 3 END,
+         exposure_bdt DESC, case_id
+LIMIT 500
+"""
+
+LEAK_CASE = "SELECT * FROM assurance.cases WHERE case_id = %(case_id)s"
+
+LEAK_CASE_EVENTS = """
+SELECT case_event_id, action, from_status, to_status, actor, as_of, at, note, details::text AS details
+FROM assurance.case_events WHERE case_id = %(case_id)s ORDER BY case_event_id
+"""
+
+# Raw Bronze lines behind the evidence, so an analyst can see exactly what each source system sent.
+EVIDENCE_RAW = """
+SELECT e.event_id::text AS event_id, e.event_type, e.arrival_class, b.source_stream, b.source_position,
+       b.arrival_time, b.raw_record
+FROM silver.events e JOIN bronze.raw_events b USING (bronze_id)
+WHERE e.event_id = ANY(%(ids)s::uuid[]) ORDER BY e.event_time
+"""
+
+LEAK_LAST_EVALUATION = """
+SELECT evaluation_id, dataset, results, benign_checks, passed, created_at
+FROM assurance.evaluation_runs ORDER BY evaluation_id DESC LIMIT 1
+"""
+
+AUDIT_RECENT = """
+SELECT at, actor, actor_role, action, target_type, target_id, outcome FROM ops.audit_log
+ORDER BY audit_id DESC LIMIT 25
+"""
+
+# --- Digital twin (Phase 4): live state from processed events ------------------------------------------------------
+TWIN_TELECOM_LAST24H = """
+WITH clock AS (SELECT max_event_time AS t FROM ops.stream_state WHERE stream = 'telecom'),
+recent AS (
+    SELECT date_trunc('hour', e.event_time) AS hour, e.event_type, e.payload ->> 'status' AS status,
+           e.payload ->> 'usage_type' AS usage_type,
+           e.payload ->> 'amount_bdt' AS amount, e.payload ->> 'quantity' AS qty
+    FROM silver.events e, clock
+    WHERE e.stream = 'telecom' AND e.event_time > clock.t - interval '24 hours' AND e.event_time <= clock.t
+)
+SELECT hour,
+       count(*) FILTER (WHERE event_type = 'telecom.recharge' AND status = 'SUCCESS') AS recharges,
+       count(*) FILTER (WHERE event_type = 'telecom.recharge' AND status = 'FAILED') AS failed,
+       coalesce(sum(amount::numeric) FILTER (WHERE event_type = 'telecom.recharge' AND status = 'SUCCESS'), 0)
+           AS recharge_bdt,
+       coalesce(sum(qty::numeric) FILTER (WHERE event_type = 'telecom.usage_record' AND usage_type = 'DATA'), 0)
+           / 1024.0 AS data_gb
+FROM recent GROUP BY 1 ORDER BY 1
+"""
+
+TWIN_CHANNEL_SUCCESS = """
+SELECT channel, sum(successful_recharges) AS successful, sum(recharge_attempts) AS attempts,
+       round(sum(successful_recharges)::numeric / nullif(sum(recharge_attempts), 0), 4) AS success_rate
+FROM gold.mart_telecom_revenue_daily GROUP BY 1 ORDER BY 1
+"""
+
+TWIN_PACKAGE_REVENUE = """
+SELECT p.package_code, d.package_name, d.category, count(*) AS activations, sum(p.price_bdt) AS revenue_bdt
+FROM gold.fct_package_purchase p JOIN gold.dim_package d USING (package_code)
+WHERE p.activation_status = 'ACTIVATED' AND p.capture_status = 'CAPTURED'
+GROUP BY 1, 2, 3 ORDER BY revenue_bdt DESC
+"""
+
+TWIN_SHIPMENTS = """
+WITH clock AS (SELECT max_event_time AS t FROM ops.stream_state WHERE stream = 'mfg')
+SELECT s.warehouse_id,
+       count(*) FILTER (WHERE s.current_status = 'DELIVERED') AS delivered,
+       count(*) FILTER (WHERE s.current_status = 'IN_TRANSIT' AND clock.t - s.dispatched_at <= interval '60 hours')
+           AS in_transit,
+       count(*) FILTER (WHERE s.current_status = 'IN_TRANSIT' AND clock.t - s.dispatched_at > interval '60 hours')
+           AS delayed,
+       round(avg(s.transit_hours), 1) AS avg_transit_hours
+FROM gold.fct_shipment s, clock GROUP BY 1 ORDER BY 1
+"""
