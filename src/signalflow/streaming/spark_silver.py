@@ -18,6 +18,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -82,23 +83,32 @@ def validate_partition(frames: Iterator[Any]) -> Iterator[Any]:
 
 
 class _Connections:
-    """One autocommit connection per driver, reopened after a failure."""
+    """One autocommit connection per thread, reopened after a failure.
+
+    Spark runs each streaming query's foreachBatch on its own driver thread, so the silver_events and master_data
+    batches can execute concurrently. A shared connection would interleave their transactions (and psycopg
+    refuses a COPY while another thread's executemany has the connection in pipeline mode), so every thread gets
+    its own connection.
+    """
 
     def __init__(self, database: str):
         self.database = database
-        self._conn: Any = None
+        self._local = threading.local()
 
     def get(self) -> Any:
         import psycopg
 
-        if self._conn is None or self._conn.closed:
-            self._conn = psycopg.connect(dbname=self.database, autocommit=True, application_name="signalflow-spark")
-        return self._conn
+        conn = getattr(self._local, "conn", None)
+        if conn is None or conn.closed:
+            conn = psycopg.connect(dbname=self.database, autocommit=True, application_name="signalflow-spark")
+            self._local.conn = conn
+        return conn
 
     def reset(self) -> None:
-        if self._conn is not None:
-            self._conn.close()
-        self._conn = None
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            conn.close()
+        self._local.conn = None
 
 
 def build_session(settings: StreamSettings, master: str) -> Any:

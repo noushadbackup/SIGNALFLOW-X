@@ -87,3 +87,34 @@ def test_offsets_summary() -> None:
     recs = [KafkaRecord("a", p, o, None, None, None, None, None, None, None, None, "[]", None)
             for p, o in [(0, 5), (0, 3), (1, 9)]]
     assert _offsets(recs) == {"a": {"0": [3, 5], "1": [9, 9]}}
+
+
+def test_each_streaming_query_thread_gets_its_own_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Regression: silver_events and master_data batches run on different driver threads; sharing one connection
+    # interleaved their transactions (CI failed with "COPY cannot be used in pipeline mode").
+    import threading
+
+    import psycopg
+
+    from signalflow.streaming.spark_silver import _Connections
+
+    class FakeConn:
+        closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    monkeypatch.setattr(psycopg, "connect", lambda **_: FakeConn())
+    holder = _Connections("db")
+    seen: dict[str, object] = {}
+
+    def grab(name: str) -> None:
+        seen[name] = holder.get()
+        assert holder.get() is seen[name]  # stable within a thread
+
+    threads = [threading.Thread(target=grab, args=(n,)) for n in ("silver_events", "master_data")]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert seen["silver_events"] is not seen["master_data"]
