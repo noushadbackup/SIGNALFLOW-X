@@ -15,7 +15,8 @@ pasted from real runs, with date and commit.
 | End-to-end acceptance | pytest `-m integration` | Postgres | full pipeline result equals generator truth; idempotent re-ingest; crash + resume = clean run | `tests/integration/` |
 | Streaming integration (P2) | pytest `-m stream` + compose `stream` profile | Kafka, Connect/Debezium, Postgres, Java 17+ | Silver/quarantine identical to the lite run; Gold = truth; SIGKILL mid-stream, exit between commits, failure inside a batch; duplicate storm; master-data CDC | `tests/stream/` |
 | Streaming units (P2) | pytest | no | topic routing, wrapper parsing, connector configs carry no secrets, arrival-time precedence | `tests/unit/test_streaming_units.py` |
-| Differential (P3) | pytest | full | lite and full profiles give identical results for one seed | planned |
+| Lake + differential (P3) | pytest `-m lake` + compose `lake` profile | Postgres, SeaweedFS, Trino, Java 17+ | incremental publication equals Postgres per table; every Gold model identical on Postgres and Trino; SIGKILL mid-write and exit between tables; compaction keeps data | `tests/lake/` |
+| Lakehouse units (P3) | pytest | no | table specs select their high-water mark, no Postgres-only types; differential normalisation | `tests/unit/test_lakehouse_units.py` |
 | Chaos scenarios (P5) | pytest | full | each incident's expected behaviour, as JSON incident reports | planned |
 | Benchmarks (P6) | script | full | measured throughput / latency / recovery; not pass/fail | planned |
 
@@ -49,3 +50,6 @@ GitHub Actions: lint (ruff), type check (mypy), unit tests, then E2E against a `
 Integration tests skip (with an explicit reason) only when no `PGHOST` is configured; CI always configures it.
 A second job (`stream`) starts the compose `stream` profile, sets up Java 17, runs `tests/stream` with
 `SIGNALFLOW_REQUIRE_STREAM=1` (missing infrastructure fails instead of skipping) and builds the Spark job image.
+A third job (`lake`) starts the compose `lake` profile, runs `tests/lake` with `SIGNALFLOW_REQUIRE_LAKE=1`, builds
+the Airflow image and runs `airflow dags test signalflow_lakehouse` inside it against a lite-pipeline database,
+then builds the Superset image.

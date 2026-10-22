@@ -2,6 +2,8 @@ version: 2
 
 sources:
   - name: silver
+    database: "{{ 'lake' if target.type == 'trino' else target.database }}"
+    schema: "{{ var('lake_prefix', '') ~ 'silver' if target.type == 'trino' else 'silver' }}"
     description: Contract-valid, deduplicated events written by the Silver processor.
     tables:
       - name: events
@@ -10,6 +12,8 @@ sources:
             data_tests: [unique, not_null]
       - name: quarantine
   - name: ops
+    database: "{{ 'lake' if target.type == 'trino' else target.database }}"
+    schema: "{{ var('lake_prefix', '') ~ 'ops' if target.type == 'trino' else 'ops' }}"
     tables:
       - name: stream_state
         description: Per-stream event-time clock and watermark (advanced per micro-batch).
@@ -17,6 +21,8 @@ sources:
         description: Business dates changed by beyond-watermark events after they were final.
       - name: late_events
   - name: ref
+    database: "{{ 'lake' if target.type == 'trino' else target.database }}"
+    schema: "{{ var('lake_prefix', '') ~ 'ref' if target.type == 'trino' else 'ref' }}"
     description: Master data snapshots.
     tables:
       - name: regions

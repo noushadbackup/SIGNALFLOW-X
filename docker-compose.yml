@@ -1,12 +1,71 @@
 # SignalFlow X — local deployment.
 # Profiles: `lite` (Postgres only, Phase 1) and `stream` (adds Kafka, Kafka Connect + Debezium, Spark; Phase 2).
-# The `full` profile (lakehouse, orchestration, BI) is added in Phase 3 as its services are verified.
+# `lake` adds S3-compatible storage (SeaweedFS) and Trino over Iceberg (Phase 3); `full` adds Airflow and Superset.
 # Images default to mirror.gcr.io because Docker Hub rate-limits anonymous pulls; override with *_IMAGE variables.
 name: signalflow
 
+x-airflow-common: &airflow-common
+  profiles: ["airflow", "full"]
+  image: signalflow/airflow:3.1.0
+  build:
+    context: .
+    dockerfile: docker/airflow/Dockerfile
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${PGUSER}:${PGPASSWORD}@postgres:5432/signalflow_airflow
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?set AIRFLOW_JWT_SECRET in .env}
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/auth/passwords.json
+    # SignalFlow CLI settings for tasks
+    PGHOST: postgres
+    PGPORT: "5432"
+    PGUSER: ${PGUSER}
+    PGPASSWORD: ${PGPASSWORD}
+    PGDATABASE: ${PGDATABASE}
+    SIGNALFLOW_SOURCE_DB: ${SIGNALFLOW_LAKE_SOURCE_DB:-signalflow_stream}   # the database the lake mirrors
+    SIGNALFLOW_CATALOG_DB: ${SIGNALFLOW_CATALOG_DB:-signalflow_catalog}
+    SIGNALFLOW_LAKE_BUCKET: ${SIGNALFLOW_LAKE_BUCKET:-signalflow-lake}
+    SIGNALFLOW_S3_ENDPOINT: http://seaweedfs:8333
+    SIGNALFLOW_S3_ACCESS_KEY: ${SIGNALFLOW_S3_ACCESS_KEY}
+    SIGNALFLOW_S3_SECRET_KEY: ${SIGNALFLOW_S3_SECRET_KEY}
+    SIGNALFLOW_TRINO_HOST: trino
+    SIGNALFLOW_TRINO_PORT: "8080"
+  volumes:
+    - airflowauth:/opt/airflow/auth
+    - airflowlogs:/opt/airflow/logs
+  depends_on:
+    postgres: {condition: service_healthy}
+  deploy:
+    resources:
+      limits:
+        memory: 1g
+  restart: unless-stopped
+
+x-superset-common: &superset-common
+  profiles: ["superset", "full"]
+  image: signalflow/superset:5.0.0
+  build:
+    context: .
+    dockerfile: docker/superset/Dockerfile
+  environment:
+    SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:?set SUPERSET_SECRET_KEY in .env}
+    SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:?set SUPERSET_ADMIN_PASSWORD in .env}
+    PGUSER: ${PGUSER}
+    PGPASSWORD: ${PGPASSWORD}
+  depends_on:
+    postgres: {condition: service_healthy}
+  deploy:
+    resources:
+      limits:
+        memory: 1500m
+  restart: unless-stopped
+
 services:
   postgres:
-    profiles: ["lite", "stream", "full"]
+    profiles: ["lite", "stream", "lake", "airflow", "superset", "full"]
     image: ${POSTGRES_IMAGE:-mirror.gcr.io/library/postgres:16-alpine}
     environment:
       POSTGRES_USER: ${PGUSER:?set PGUSER in .env}
@@ -26,7 +85,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1g
+          memory: 1536m   # catalog, Airflow and Superset metadata live here too in the lake/full profiles
     restart: unless-stopped
 
   kafka:
@@ -115,7 +174,131 @@ services:
           memory: 2g
     restart: unless-stopped
 
+  seaweedfs:
+    # MinIO images could not be pulled in the build environment (ADR-0005); any S3-compatible store works because
+    # Spark (Iceberg S3FileIO) and Trino only speak the S3 API.
+    profiles: ["lake", "full"]
+    image: ${SEAWEEDFS_IMAGE:-mirror.gcr.io/chrislusf/seaweedfs:3.97}
+    entrypoint: ["/bin/sh", "/opt/signalflow/entrypoint.sh"]
+    environment:
+      S3_ACCESS_KEY: ${SIGNALFLOW_S3_ACCESS_KEY:?set SIGNALFLOW_S3_ACCESS_KEY in .env}
+      S3_SECRET_KEY: ${SIGNALFLOW_S3_SECRET_KEY:?set SIGNALFLOW_S3_SECRET_KEY in .env}
+    volumes:
+      - ./docker/seaweedfs/entrypoint.sh:/opt/signalflow/entrypoint.sh:ro
+      - lakedata:/data
+    ports:
+      - "127.0.0.1:${S3_PORT:-58333}:8333"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status && wget -q -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    restart: unless-stopped
+
+  lake-bucket:
+    # One-shot: create the warehouse bucket (idempotent).
+    profiles: ["lake", "full"]
+    image: ${SEAWEEDFS_IMAGE:-mirror.gcr.io/chrislusf/seaweedfs:3.97}
+    depends_on:
+      seaweedfs: {condition: service_healthy}
+    entrypoint: ["/bin/sh", "-c", "echo 's3.bucket.create -name ${SIGNALFLOW_LAKE_BUCKET:-signalflow-lake}' | weed shell -master=seaweedfs:9333 && echo bucket ready"]
+    restart: "no"
+
+  trino:
+    profiles: ["lake", "full"]
+    image: ${TRINO_IMAGE:-mirror.gcr.io/trinodb/trino:478}
+    depends_on:
+      postgres: {condition: service_healthy}
+      seaweedfs: {condition: service_healthy}
+    environment:
+      PGUSER: ${PGUSER}
+      PGPASSWORD: ${PGPASSWORD}
+      SIGNALFLOW_CATALOG_DB: ${SIGNALFLOW_CATALOG_DB:-signalflow_catalog}
+      SIGNALFLOW_LAKE_BUCKET: ${SIGNALFLOW_LAKE_BUCKET:-signalflow-lake}
+      SIGNALFLOW_S3_ACCESS_KEY: ${SIGNALFLOW_S3_ACCESS_KEY}
+      SIGNALFLOW_S3_SECRET_KEY: ${SIGNALFLOW_S3_SECRET_KEY}
+      # plain (non aws-chunked) uploads; see lakehouse/publish.py for why
+      AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+      AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+    volumes:
+      - ./docker/trino/catalog/lake.properties:/etc/trino/catalog/lake.properties:ro
+    ports:
+      - "127.0.0.1:${TRINO_PORT:-58080}:8080"
+    healthcheck:
+      test: ["CMD", "/usr/lib/trino/bin/health-check"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    restart: unless-stopped
+
+  # --- Airflow 3.1 (profile `airflow`; run together with `stream` and `lake`) -------------------------------------
+  # LocalExecutor, metadata in Postgres database signalflow_airflow, UI/API on 127.0.0.1 only. Tasks call the
+  # signalflow CLI (its own virtualenv in the image), which reaches Postgres, SeaweedFS and Trino by service name.
+  airflow-init:
+    <<: *airflow-common
+    environment:
+      <<: *airflow-env
+      CONNECTION_CHECK_MAX_COUNT: "0"   # the image's DB wait would fail: this step creates the database
+    command: ["bash", "-c", "/opt/signalflow/venv/bin/python -c \"from signalflow.erp import ensure_database; ensure_database('signalflow_airflow')\" && airflow db migrate"]
+    restart: "no"
+
+  airflow-apiserver:
+    <<: *airflow-common
+    command: ["airflow", "api-server"]
+    depends_on: &airflow-after-init
+      airflow-init: {condition: service_completed_successfully}
+    ports:
+      - "127.0.0.1:${AIRFLOW_PORT:-58081}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/v2/version"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: ["airflow", "scheduler"]
+    depends_on: *airflow-after-init
+    deploy:
+      resources:
+        limits:
+          memory: 3g          # tasks run inside the scheduler (LocalExecutor), including the Spark publisher
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: ["airflow", "dag-processor"]
+    depends_on: *airflow-after-init
+
+  # --- Superset 5.0 (profile `superset`; reads Gold from Trino) -----------------------------------------------------
+  superset-init:
+    <<: *superset-common
+    command: ["/app/docker/signalflow-init.sh"]
+    restart: "no"
+
+  superset:
+    <<: *superset-common
+    depends_on:
+      superset-init: {condition: service_completed_successfully}
+    ports:
+      - "127.0.0.1:${SUPERSET_PORT:-58088}:8088"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8088/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
 volumes:
   pgdata:
   kafkadata:
   sparkstate:
+  lakedata:
+  airflowauth:
+  airflowlogs:

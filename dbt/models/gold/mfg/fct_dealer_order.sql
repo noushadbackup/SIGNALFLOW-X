@@ -1,8 +1,12 @@
 -- Grain: one dealer order line (order_id). Status is derived from later status and shipment events.
 with status_events as (
-    select order_id, (array_agg(status order by event_time desc, event_id desc))[1] as last_status
-    from {{ ref('stg_mfg_order_status') }}
-    group by order_id
+    select order_id, status as last_status
+    from (
+        select order_id, status,
+               row_number() over (partition by order_id order by event_time desc, event_id desc) as rn
+        from {{ ref('stg_mfg_order_status') }}
+    ) s
+    where rn = 1
 )
 select
     o.order_id, o.event_id, o.event_time as ordered_at, o.business_date, o.dealer_id, d.region_code as dealer_region,

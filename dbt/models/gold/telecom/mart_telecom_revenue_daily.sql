@@ -6,7 +6,7 @@ select
     count(*) as recharge_attempts,
     count(*) filter (where is_success) as successful_recharges,
     count(*) filter (where not is_success) as failed_recharges,
-    round(count(*) filter (where is_success)::numeric / nullif(count(*), 0), 4) as success_rate,
+    round({{ div('count(*) filter (where is_success)', 'nullif(count(*), 0)') }}, 4) as success_rate,
     coalesce(sum(amount_bdt) filter (where is_success), 0) as gross_recharge_bdt,
     coalesce(sum(billed_amount_bdt) filter (where is_success), 0) as billed_bdt,
     count(*) filter (where is_success and billing_records = 0) as successful_without_billing,

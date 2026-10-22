@@ -1,6 +1,6 @@
 # SignalFlow X — Architecture
 
-Status: Phase 0 design; Phase 1 implemented and tested for the `lite` profile (see `docs/reports/PHASE1_REPORT.md`). Sections marked *(planned)* are designs, not
+Status: Phases 1–3 implemented and tested (`lite`, `stream` and `lake` profiles; see `docs/reports/`). Sections marked *(planned)* are designs, not
 working code yet.
 
 ## 1. Context
@@ -31,15 +31,15 @@ flowchart LR
 The same contracts, layer semantics and tests apply to both profiles. The lite profile is not a toy: it is the
 reference implementation used to check the distributed one (differential testing, Phase 3).
 
-| Concern | `lite` (Phase 1, runs today) | `stream` (Phase 2, runs today) | `full` (Phases 3–5, planned) |
+| Concern | `lite` (Phase 1, runs today) | `stream` (Phase 2, runs today) | `lake` / `full` (Phase 3 runs today; Phase 5 adds monitoring) |
 |---------|------------------------------|--------------------------------|------------------------------|
 | Transport | JSONL arrival files, ingested in arrival order | Kafka 4.1.1 (KRaft); telecom producers; ERP outbox → Debezium 3.6.3 | same as `stream` |
-| Bronze | `bronze.raw_events` in Postgres | same table, written by Spark (`source_stream = kafka:<topic>`) | Iceberg table on S3-compatible storage |
-| Silver | Python micro-batch processor, transactional checkpoint | Spark 4.0.3 Structured Streaming, validation on executors, same Silver rules, batch-id commit marker (ADR-0008) | Spark → Iceberg `MERGE` |
-| Gold | dbt on Postgres | dbt on Trino over Iceberg |
-| Orchestration | `signalflow` CLI / Makefile | Airflow |
-| BI | Streamlit (Phase 6) | Superset + Streamlit |
-| Observability | `ops.*` tables + structured logs | + Prometheus/Grafana |
+| Bronze | `bronze.raw_events` in Postgres | same table, written by Spark (`source_stream = kafka:<topic>`) | + Iceberg copy `lake.bronze.raw_events` on SeaweedFS (S3 API), published incrementally (ADR-0009) |
+| Silver | Python micro-batch processor, transactional checkpoint | Spark 4.0.3 Structured Streaming, validation on executors, same Silver rules, batch-id commit marker (ADR-0008) | decided in Postgres as before; Spark job publishes committed rows to Iceberg (append by high-water mark) |
+| Gold | dbt on Postgres | dbt on Postgres | the same dbt project on Trino 478 over Iceberg, compared row by row with Postgres Gold |
+| Orchestration | `signalflow` CLI / Makefile | CLI / Makefile | Airflow 3.1 DAGs calling the CLI |
+| BI | Streamlit control tower | Streamlit | Superset 5.0 (assets as code) + Streamlit Lakehouse page |
+| Observability | `ops.*` tables + structured logs | + slot lag, replays | + `ops.lake_publish_runs`, `ops.lake_differential_checks`; Prometheus/Grafana in Phase 5 |
 
 ```mermaid
 flowchart TB
@@ -156,18 +156,20 @@ erDiagram
 | `mart_mfg_production_daily` | business date × factory × category | composite | includes disruption days |
 | `mart_telecom_usage_daily` | business date × serving region × usage type | composite | |
 
-## 6. Full-profile design *(planned; the Kafka/Debezium/Spark half runs today as the `stream` profile)*
+## 6. Full-profile design *(runs today except Prometheus/Grafana, Phase 5)*
 
 ```mermaid
 flowchart LR
   OCS["telecom producers"] -->|"tel.* topics"| K[(Kafka KRaft)]
   ERPDB[("ERP Postgres<br/>business tables + outbox")] -->|"Debezium outbox router"| K
-  K --> SS["Spark Structured Streaming<br/>bronze + silver jobs"]
-  SS -->|"Iceberg (JDBC catalog in Postgres)"| OBJ[("S3-compatible storage")]
-  OBJ --> TR["Trino"] --> DBT["dbt-trino gold"] --> OBJ
+  K --> SS["Spark Structured Streaming<br/>bronze + silver (ADR-0008)"]
+  SS --> PG[("Postgres<br/>bronze · silver · ops")]
+  PG -->|"Spark publisher<br/>append by high-water mark (ADR-0009)"| OBJ[("Iceberg on SeaweedFS (S3 API)<br/>JDBC catalog in Postgres")]
+  OBJ --> TR["Trino 478"] --> DBT["dbt-trino gold"] --> OBJ
   TR --> SUP["Superset"]
   TR --> ST["Streamlit control tower"]
   AF["Airflow"] -.schedules.-> DBT
+  AF -.schedules.-> PG
   PR["Prometheus"] --> GF["Grafana"]
   K & SS & TR -.metrics.-> PR
 ```
@@ -179,12 +181,13 @@ Key decisions are recorded as ADRs in [`docs/adr/`](adr).
 | # | Risk | Likelihood | Impact | Mitigation |
 |---|------|-----------|--------|-----------|
 | R1 | Full profile exceeds WSL2 memory on a 16 GB laptop | High | High | profiles; per-service memory limits; Airflow/Superset only in `full`; measured RAM in reports |
-| R2 | MinIO community images are no longer published the way they used to be; the image could not be pulled in the build environment | Medium | Medium | treat storage as "S3-compatible"; pin a known MinIO release where pullable, SeaweedFS as tested fallback (ADR-0005, verified in Phase 3) |
+| R2 | MinIO community images are no longer published the way they used to be; the image could not be pulled in the build environment | Medium | Medium | treat storage as "S3-compatible"; pin a known MinIO release where pullable, SeaweedFS as tested fallback. **Resolved in Phase 3:** SeaweedFS 3.97 in use; needed `AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED` (ADR-0009) |
 | R3 | Debezium 3.x images are on quay.io, which this build environment cannot reach | Medium | Medium | **resolved in Phase 2:** Connect image built from the official Kafka 4.1.1 image + the Debezium 3.6.3 plugin from Maven Central (checksummed) |
-| R4 | Spark ↔ Iceberg ↔ Kafka connector version drift | Medium | High | Phase 2 spike pinned Spark 4.0.3 + Kafka connector 4.0.3 / kafka-clients 3.9.1; Iceberg runtime pairing checked for Spark 4.0 (ADR-0005) |
+| R4 | Spark ↔ Iceberg ↔ Kafka connector version drift | Medium | High | Phase 2 spike pinned Spark 4.0.3 + Kafka connector 4.0.3 / kafka-clients 3.9.1; **resolved in Phase 3:** Iceberg 1.10.1 runtime for Spark 4.0; Trino 478 reads the tables Spark writes and vice versa (tests) |
 | R5 | Two Silver implementations (Python lite, Spark full) drift apart | Medium | High | **one** implementation of the Silver rules (`apply_validated`) used by both paths; stream tests require identical Silver/quarantine fingerprints vs the lite run on the same seed |
 | R6 | Synthetic data too regular to be credible | Medium | Medium | Dhaka hourly demand curve, regional weights, segment behaviour, Fri/Sat effects, supply disruptions |
 | R7 | Ground truth leaks into detection logic | Low | High | truth written outside pipeline paths; source-scan test; detection rules reviewed against ledger fields |
 | R8 | Docker Hub rate limits during setup | Medium | Low | compose file uses `mirror.gcr.io` defaults overridable via env |
 | R10 | Debezium replication slot pins WAL (idle ERP, or a slot left behind) | Medium | High (disk fills) | heartbeat action query advances the slot; teardown drops slots and resets connector offsets; slot lag shown by `stream status` (alerting in Phase 5) |
+| R11 | Lake mirrors two databases at once (identity values overlap) | Low | High | publisher refuses a table whose snapshots record another source database; tests use separate namespace prefixes |
 | R9 | Overclaiming (exactly-once, "production ready") | Medium | High (credibility) | every guarantee in docs links to the test that demonstrates it |

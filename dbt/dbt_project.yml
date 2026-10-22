@@ -16,6 +16,8 @@ models:
     gold:
       +schema: gold
       +materialized: table
+      # Trino/Iceberg: CREATE OR REPLACE TABLE, so each rebuild is a new snapshot of the same table (history kept)
+      +on_table_exists: replace
 
 tests:
   signalflow:

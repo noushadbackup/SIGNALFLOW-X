@@ -9,11 +9,11 @@ with ordered as (
     from {{ ref('stg_tel_subscriber_lifecycle') }}
 )
 select
-    md5(subscriber_id || '|' || event_id::text) as subscriber_sk,
+    {{ md5_hex("subscriber_id || '|' || cast(event_id as varchar)") }} as subscriber_sk,
     subscriber_id, segment, home_region, plan_type, status,
     action as change_reason,
     event_time as valid_from,
-    coalesce(next_event_time, 'infinity'::timestamptz) as valid_to,
+    coalesce(next_event_time, {{ open_end_ts() }}) as valid_to,
     rn_desc = 1 as is_current,
     event_id as source_event_id
 from ordered

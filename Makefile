@@ -1,4 +1,4 @@
-# SignalFlow X shortcuts (lite and stream profiles). Requires .env (copy .env.example).
+# SignalFlow X shortcuts (lite, stream, lake, airflow and superset profiles). Requires .env (copy .env.example).
 SHELL := /bin/bash
 include .env
 export
@@ -7,10 +7,12 @@ DATA ?= data/seed7
 SEED ?= 7
 
 .PHONY: setup up down generate run status ui test test-unit test-integration lint clean \
-	stream-up stream-down stream-init stream-replay stream-silver stream-transform stream-status test-stream
+	stream-up stream-down stream-init stream-replay stream-silver stream-transform stream-status test-stream \
+	lake-up lake-down lake-publish lake-transform lake-compare lake-status lake-maintain test-lake \
+	airflow-up airflow-password superset-up superset-bootstrap
 
 setup:            ## create venv and install
-	python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev,ui,stream]"
+	python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev,ui,stream,lake]"
 
 up:               ## start PostgreSQL (lite profile)
 	docker compose --profile lite up -d --wait
@@ -65,6 +67,43 @@ stream-status:
 
 test-stream:      ## Phase 2 acceptance tests (needs `make stream-up`)
 	.venv/bin/pytest tests/stream -q -rA
+
+# --- lake profile: SeaweedFS (S3 API) + Iceberg JDBC catalog in Postgres + Trino; Spark publisher on the host ---
+lake-up:          ## fetch jars, start Postgres + SeaweedFS (+ bucket) + Trino
+	scripts/fetch_artifacts.sh && docker compose --profile lake up -d --wait
+
+lake-down:
+	docker compose --profile lake down
+
+lake-publish:     ## committed Postgres state -> Iceberg (incremental, idempotent); DB=<source database>
+	.venv/bin/signalflow lake publish --database $(or $(DB),$(PGDATABASE))
+
+lake-transform:   ## dbt build on Trino (Gold as Iceberg tables)
+	.venv/bin/signalflow lake transform
+
+lake-compare:     ## Gold on Postgres vs Gold on the lake, row by row
+	.venv/bin/signalflow lake compare --database $(or $(DB),$(PGDATABASE))
+
+lake-status:
+	.venv/bin/signalflow lake status
+
+lake-maintain:    ## compact files, expire snapshots (keeps the last 50)
+	.venv/bin/signalflow lake maintain
+
+test-lake:        ## Phase 3 acceptance tests (needs `make lake-up`)
+	.venv/bin/pytest tests/lake -q -rA
+
+airflow-up:       ## Airflow 3.1 (UI on http://127.0.0.1:58081, user admin, password printed by airflow-password)
+	docker compose --profile lake --profile airflow up -d --build --wait
+
+airflow-password:
+	docker compose exec airflow-apiserver cat /opt/airflow/auth/passwords.json
+
+superset-up:      ## Superset 5.0 on http://127.0.0.1:58088 (user admin, SUPERSET_ADMIN_PASSWORD from .env)
+	docker compose --profile lake --profile superset up -d --build --wait
+
+superset-bootstrap: ## Trino connection, datasets, charts and the dashboard, as code
+	.venv/bin/signalflow bi bootstrap
 
 clean:
 	rm -rf data dbt/target dbt/logs

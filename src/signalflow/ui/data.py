@@ -131,3 +131,50 @@ UNION ALL
 SELECT 'Inventory adjustment without approval', 'manufacturing', count(*), NULL
 FROM gold.fct_inventory_movement WHERE authorization_status = 'NO_APPROVAL_FOUND'
 """
+
+
+# --- lakehouse (Phase 3) -------------------------------------------------------------------------------------------
+LAKE_PUBLISH_RUNS = """
+SELECT published_at, table_name, mode, rows_written, hwm_before, hwm_after, skipped, seconds
+FROM ops.lake_publish_runs ORDER BY run_id DESC LIMIT 60
+"""
+
+LAKE_LAST_CHECK = """
+SELECT check_id, model, rows_postgres, rows_lake, identical, checked_at
+FROM ops.lake_differential_checks
+WHERE check_id = (SELECT max(check_id) FROM ops.lake_differential_checks)
+ORDER BY model
+"""
+
+
+def lake_query(sql: str) -> pd.DataFrame:
+    """Query Trino (catalog `lake`). Raises if Trino is not running; the page says so."""
+    from ..lakehouse.settings import LakeSettings
+    from ..lakehouse.trino_sql import query as trino_query
+
+    cols, rows = trino_query(LakeSettings.from_env(), sql)
+    return pd.DataFrame(rows, columns=cols)
+
+
+def lake_tables() -> pd.DataFrame:
+    from ..lakehouse.settings import LakeSettings
+    from ..lakehouse.tables import TABLES
+
+    settings = LakeSettings.from_env()
+    parts = [f"""SELECT '{t.key}' AS table_name, '{t.mode}' AS mode,
+                    (SELECT count(*) FROM lake.{settings.namespace(t.layer)}."{t.name}") AS rows,
+                    count(*) AS snapshots, max(committed_at) AS last_commit
+                 FROM lake.{settings.namespace(t.layer)}."{t.name}$snapshots" """ for t in TABLES]
+    return lake_query(" UNION ALL ".join(parts) + " ORDER BY 1")
+
+
+def lake_snapshots(layer: str, table: str) -> pd.DataFrame:
+    from ..lakehouse.settings import LakeSettings
+
+    ns = LakeSettings.from_env().namespace(layer)
+    return lake_query(f"""
+        SELECT committed_at, snapshot_id, operation,
+               CAST(coalesce(element_at(summary, 'added-records'), '0') AS bigint) AS added_records,
+               CAST(coalesce(element_at(summary, 'total-records'), '0') AS bigint) AS total_records,
+               element_at(summary, 'signalflow.hwm') AS hwm
+        FROM lake.{ns}."{table}$snapshots" ORDER BY committed_at""")

@@ -407,6 +407,87 @@ def page_signals() -> None:
                "rows, an exposure estimate and a precision/recall check against the generator's injected-scenario labels.")
 
 
+def page_lakehouse() -> None:
+    header("Platform", "Lakehouse",
+           "Committed Bronze, Silver and ops state published to Iceberg tables; Gold rebuilt by dbt on Trino and "
+           "checked row by row against Postgres Gold.")
+    try:
+        tables = lake_cached("tables")
+    except Exception as exc:  # Trino not running: say so instead of showing anything
+        st.info(f"The lake is not reachable ({type(exc).__name__}). Start it with `docker compose --profile lake up` "
+                "and publish with `signalflow lake publish`.")
+        return
+    runs = q(data.LAKE_PUBLISH_RUNS) if data.table_exists("ops.lake_publish_runs") else pd.DataFrame()
+    check = q(data.LAKE_LAST_CHECK) if data.table_exists("ops.lake_differential_checks") else pd.DataFrame()
+    identical = int(check.identical.sum()) if len(check) else 0
+    tiles([
+        ("Iceberg tables", fmt_int(len(tables)), "bronze · silver · ops · ref"),
+        ("Snapshots", fmt_int(tables.snapshots.sum()), "time-travel points kept"),
+        ("Last publication", fmt_ts(runs.published_at.max()) if len(runs) else "–", "Dhaka time"),
+        ("Gold models identical", f"{identical} / {len(check)}" if len(check) else "not checked yet",
+         f"check {fmt_ts(check.checked_at.max())}" if len(check) else "run signalflow lake compare"),
+    ])
+
+    a, b = st.columns([3, 2])
+    with a:
+        st.markdown("#### Silver events: snapshot history")
+        snaps = lake_cached("silver.events")
+        labels = [f"{fmt_ts(t, '%H:%M:%S')} · {op}" for t, op in zip(snaps.committed_at, snaps.operation, strict=True)]
+        op_color = {"append": CATEGORICAL[0], "replace": CATEGORICAL[1], "overwrite": CATEGORICAL[2]}
+        fig = go.Figure()
+        for op, color in op_color.items():
+            mask = snaps.operation == op
+            if mask.any():
+                fig.add_bar(x=[lbl for lbl, m in zip(labels, mask, strict=True) if m],
+                            y=snaps.total_records[mask].astype(float), name=op, marker_color=color,
+                            customdata=snaps.added_records[mask], hovertemplate="%{x}<br>total %{y:,} rows · "
+                            "added %{customdata:,}<extra>%{fullData.name}</extra>")
+        fig.update_xaxes(categoryorder="array", categoryarray=labels)
+        chart(style(fig, height=300, y_title="rows after commit"))
+        st.caption("Append = a publication of newly committed rows (its high-water mark is in the snapshot summary). "
+                   "Replace = compaction: files rewritten, row count unchanged.")
+        source("lake.silver.\"events$snapshots\" (Trino)")
+    with b:
+        st.markdown("#### Differential check (last run)")
+        if check.empty:
+            st.info("No check recorded yet. Run `signalflow lake compare`.")
+        else:
+            ok = {True: ("✓", GOOD, "Identical"), False: ("✕", CRITICAL, "Differs")}
+            html_table(pd.DataFrame({
+                "Gold model": check.model, "Postgres rows": [fmt_int(v) for v in check.rows_postgres],
+                "Lake rows": [fmt_int(v) for v in check.rows_lake],
+                "Result": [badge({str(k): v for k, v in ok.items()}, str(bool(x))) for x in check.identical]}),
+                numeric={"Postgres rows", "Lake rows"}, raw={"Result"})
+        source("ops.lake_differential_checks")
+
+    st.markdown("#### Published tables")
+    html_table(pd.DataFrame({
+        "Table": tables.table_name, "Mode": tables["mode"], "Rows": [fmt_int(v) for v in tables.rows],
+        "Snapshots": [fmt_int(v) for v in tables.snapshots], "Last commit": [fmt_ts(v) for v in tables.last_commit]}),
+        numeric={"Rows", "Snapshots"})
+    source("Iceberg metadata tables via Trino")
+
+    if len(runs):
+        st.markdown("#### Recent publication runs")
+        shown = runs.head(20)
+        html_table(pd.DataFrame({
+            "At": [fmt_ts(v, "%d %b %H:%M:%S") for v in shown.published_at], "Table": shown.table_name,
+            "Rows written": [fmt_int(v) for v in shown.rows_written],
+            "High-water mark": [f"{fmt_int(a)} → {fmt_int(b)}" if a is not None and not pd.isna(a) else "–"
+                                for a, b in zip(shown.hwm_before, shown.hwm_after, strict=True)],
+            "Note": [s or "" for s in shown.skipped], "Seconds": [f"{float(v):.2f}" for v in shown.seconds]}),
+            numeric={"Rows written", "Seconds"})
+        source("ops.lake_publish_runs")
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def lake_cached(what: str) -> pd.DataFrame:
+    if what == "tables":
+        return data.lake_tables()
+    layer, table = what.split(".")
+    return data.lake_snapshots(layer, table)
+
+
 def planned(phase: str, title: str, what: list[str]) -> Callable[[], None]:
     def render() -> None:
         header("Planned", title, "Not built yet. This page appears with real data when its phase ships.")
@@ -432,6 +513,7 @@ def main() -> None:
                     st.Page(page_manufacturing, title="Manufacturing", url_path="manufacturing", icon=":material/factory:")],
         "Trust": [st.Page(page_pipeline, title="Pipeline observatory", url_path="pipeline", icon=":material/monitor_heart:"),
                   st.Page(page_signals, title="Reconciliation signals", url_path="signals", icon=":material/balance:")],
+        "Platform": [st.Page(page_lakehouse, title="Lakehouse", url_path="lakehouse", icon=":material/database:")],
         "Planned": [
             st.Page(planned("Phase 4", "Revenue Leak Hunter", [
                 "5 telecom and 5 manufacturing leak scenarios as cases: pending, suspicious, confirmed by rule, resolved",
@@ -454,7 +536,7 @@ def main() -> None:
     nav = st.navigation(pages)
     with st.sidebar:
         st.markdown("**SignalFlow X**")
-        st.caption("Enterprise data nervous system · synthetic data · lite profile (Postgres)")
+        st.caption("Enterprise data nervous system · synthetic data · Postgres + Iceberg lake")
         st.caption(f"Rendered {pd.Timestamp.now(tz='Asia/Dhaka').strftime('%d %b %Y %H:%M')} Dhaka")
     nav.run()
 

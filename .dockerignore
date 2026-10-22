@@ -8,3 +8,4 @@ dbt/logs
 .pytest_cache
 .mypy_cache
 .ruff_cache
+.cache/airflow-venv

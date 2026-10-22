@@ -1,4 +1,7 @@
-# Connection comes from the same libpq environment variables as the Python pipeline. No secrets in this file.
+# Connections come from environment variables only. No secrets in this file.
+#   lite (default): PostgreSQL through the same libpq variables as the Python pipeline.
+#   lake: Trino over the Iceberg catalog `lake` (compose `lake` profile). Trino listens on 127.0.0.1 only and has
+#         no authentication in the local stack (see docs/ARCHITECTURE.md, security notes).
 signalflow:
   target: lite
   outputs:
@@ -9,5 +12,15 @@ signalflow:
       user: "{{ env_var('PGUSER') }}"
       password: "{{ env_var('PGPASSWORD') }}"
       dbname: "{{ env_var('PGDATABASE') }}"
+      schema: gold
+      threads: 4
+    lake:
+      type: trino
+      method: none
+      http_scheme: http
+      user: signalflow
+      host: "{{ env_var('SIGNALFLOW_TRINO_HOST', '127.0.0.1') }}"
+      port: "{{ env_var('SIGNALFLOW_TRINO_PORT', '58080') | int }}"
+      database: lake
       schema: gold
       threads: 4

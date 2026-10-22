@@ -1,6 +1,6 @@
 # ADR-0008: Spark streaming sink — one Postgres transaction per micro-batch, keyed by batch id
 
-**Status:** Accepted 2026-10-22 (Phase 2). Revisit in Phase 3, when Silver moves to Iceberg.
+**Status:** Accepted 2026-10-22 (Phase 2). The planned Iceberg `MERGE` sink was not built; see ADR-0009.
 
 ## Context
 Phase 2 adds a streaming path: telecom producers and the ERP outbox (via Debezium) write to Kafka, and Spark
@@ -34,7 +34,7 @@ write and Spark's commit log entry, the batch runs again.
   force an exit between our commit and Spark's, and fail inside a batch (`tests/stream/`). Kafka → Spark itself is
   at-least-once; no end-to-end exactly-once claim is made.
 * The driver collects each batch. Throughput is bounded by the single Postgres writer anyway; Phase 3 replaces this
-  sink with Iceberg `MERGE` written by the executors.
+  sink with Iceberg `MERGE` written by the executors (not done: ADR-0009 publishes committed Postgres state instead).
 * Arrival classes and KPI finality depend on micro-batch boundaries (by design, ADR-0004), so they can differ from
   the lite run while Silver content, quarantine and Gold totals are identical. Tests check lateness against the
   generator's injected delays instead of against the lite classification.

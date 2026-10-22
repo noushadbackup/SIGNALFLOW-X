@@ -103,7 +103,7 @@ transfer, collect to driver) dominates at this volume. Controlled measurements a
 * The source simulator is the attributed origin of the one damaged line (telecom); the ERP never writes damaged
   JSON.
 * Master-data CDC lands raw in Bronze; turning it into SCD2 dealer/product dimensions is Phase 4 (digital twin).
-* The Spark job image could not be built in this environment (its package mirror refuses plain HTTP through the
+* (Resolved in Phase 3: the image now builds here, see PHASE3_REPORT.) The Spark job image could not be built in this environment (its package mirror refuses plain HTTP through the
   proxy); it is built in the CI `stream` job instead. The test suite runs Spark on the host.
 * Plain-text PLAINTEXT listeners, no TLS/SASL: acceptable only because every port is bound to 127.0.0.1.
 

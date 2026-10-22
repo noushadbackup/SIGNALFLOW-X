@@ -103,6 +103,69 @@ def _cmd_stream(args: argparse.Namespace) -> dict[str, Any]:
     raise SystemExit(f"unknown stream action {args.action}")
 
 
+def _cmd_lake(args: argparse.Namespace) -> dict[str, Any]:
+    import os
+
+    from .lakehouse import admin
+    from .lakehouse.settings import LakeSettings
+
+    settings = LakeSettings.from_env()
+    database = args.database or os.environ.get("PGDATABASE", "signalflow")
+    if args.action in ("publish", "maintain"):
+        from dataclasses import asdict
+
+        from .lakehouse import publish as pub
+
+        pub.ensure_catalog(settings)
+        spark = pub.build_session(settings, args.master)
+        spark.sparkContext.setLogLevel(os.environ.get("SPARK_LOG_LEVEL", "WARN"))
+        try:
+            if args.action == "publish":
+                results = pub.publish(spark, settings, database)
+                return {"source_db": database, "tables": [asdict(r) for r in results],
+                        "rows_written": sum(r.rows_written for r in results)}
+            return {"maintained": admin.maintain(spark, settings, retain_last=args.retain_last)}
+        finally:
+            spark.stop()
+    if args.action == "transform":
+        proc = admin.run_dbt_lake("build", settings=settings)
+        if proc.returncode != 0:
+            sys.stderr.write(proc.stdout)
+        return {"dbt_returncode": proc.returncode, "dbt_summary": proc.stdout.strip().splitlines()[-3:]}
+    if args.action == "transform-postgres":
+        from .pipeline import run_dbt
+
+        proc = run_dbt("build", database=database)
+        if proc.returncode != 0:
+            sys.stderr.write(proc.stdout)
+        return {"dbt_returncode": proc.returncode, "dbt_summary": proc.stdout.strip().splitlines()[-3:]}
+    if args.action == "compare":
+        from .lakehouse.compare import compare_gold, record_check
+
+        diffs = compare_gold(settings, database)
+        record_check(database, diffs)
+        return {"source_db": database, "identical": all(d.identical for d in diffs),
+                "exit_code": 0 if all(d.identical for d in diffs) else 1,
+                "tables": {d.table: {"rows_postgres": d.rows_postgres, "rows_lake": d.rows_lake,
+                                     "identical": d.identical, "only_in_postgres": d.only_in_postgres,
+                                     "only_in_lake": d.only_in_lake} for d in diffs}}
+    if args.action == "status":
+        return admin.status(settings)
+    if args.action == "drop":
+        if not args.yes:
+            raise SystemExit("drop deletes every table under SIGNALFLOW_LAKE_PREFIX; add --yes to confirm")
+        return {"dropped_namespaces": admin.drop_namespaces(settings)}
+    raise SystemExit(f"unknown lake action {args.action}")
+
+
+def _cmd_bi(args: argparse.Namespace) -> dict[str, Any]:
+    import os
+
+    from .bi.superset import bootstrap
+
+    return bootstrap(args.url, lake_prefix=os.environ.get("SIGNALFLOW_LAKE_PREFIX", ""))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="signalflow")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -140,6 +203,20 @@ def main(argv: list[str] | None = None) -> int:
     st.add_argument("--drop-databases", action="store_true")
     st.add_argument("--yes", action="store_true")
     st.set_defaults(func=_cmd_stream)
+
+    lk = sub.add_parser("lake", help="lakehouse (Iceberg on S3-compatible storage, Trino, dbt-trino)")
+    lk.add_argument("action", choices=["publish", "transform", "transform-postgres", "compare", "status",
+                                       "maintain", "drop"])
+    lk.add_argument("--database", help="source Postgres database (default PGDATABASE)")
+    lk.add_argument("--master", default="local[2]", help="Spark master for publish/maintain")
+    lk.add_argument("--retain-last", type=int, default=50, help="maintain: snapshots always kept per table")
+    lk.add_argument("--yes", action="store_true")
+    lk.set_defaults(func=_cmd_lake)
+
+    bi = sub.add_parser("bi", help="Superset assets (Trino connection, datasets, charts, dashboard)")
+    bi.add_argument("action", choices=["bootstrap"])
+    bi.add_argument("--url", help="Superset base URL (default SIGNALFLOW_SUPERSET_URL or http://127.0.0.1:58088)")
+    bi.set_defaults(func=_cmd_bi)
 
     args = parser.parse_args(argv)
     result = args.func(args)
