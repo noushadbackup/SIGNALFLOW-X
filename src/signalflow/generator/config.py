@@ -53,6 +53,10 @@ class GeneratorConfig:
     dealer_short_payment_prob: float = 0.05
     double_refund_count: int = 1
     unauthorized_adjustment_count: int = 2
+    dealer_non_payment_prob: float = 0.01   # invoice never settled
+    # Benign timing (must never be confirmed as a leak): delayed but complete
+    delayed_billing_prob: float = 0.003     # billing record arrives 2-20 h after the recharge
+    late_payment_share: float = 0.25        # dealers paying after the due date, at most LATE_PAYMENT_MAX later
 
     extra: dict[str, Any] = field(default_factory=dict)
 

@@ -171,7 +171,7 @@ def test_no_unplanned_lateness(clean_run: CleanRun) -> None:
     injected = set()
     for raw in (clean_run.data / "truth" / "anomalies.jsonl").read_text().splitlines():
         a = json.loads(raw)
-        if a["anomaly_type"].startswith("LATE_"):
+        if a["anomaly_type"].startswith("LATE_") or a["anomaly_type"] == "DELAYED_BILLING":
             injected.add(a["refs"]["event_id"])
     late = {r[0] for r in clean_run.conn.execute(
         "SELECT event_id::text FROM silver.events WHERE arrival_class <> 'ON_TIME'")}

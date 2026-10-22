@@ -8,10 +8,11 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from .config import GeneratorConfig
-from .core import HOUR_MS, Emitter, between, business_date, dhaka_midnight_ms, poisha_to_bdt
+from .core import DAY_MS, HOUR_MS, Emitter, between, business_date, dhaka_midnight_ms, poisha_to_bdt
 from .reference import CATEGORY_DEMAND, DEALER_WEEKDAY, FACTORIES, PRODUCTS, Dealer, Warehouse
 
 TIER_DISCOUNT_BP = {"A": 300, "B": 150, "C": 0}  # basis points off dealer price
+LATE_PAYMENT_MAX = timedelta(days=3)  # normal late payers settle within this time after the due date
 CHEAP_CATEGORIES = {"FAN", "SMARTPHONE"}
 
 
@@ -136,7 +137,7 @@ class ManufacturingSimulator:
                             {"invoice_id": invoice_id, "shipment_id": shp.shipment_id, "order_id": order_id,
                              "dealer_id": dealer.dealer_id, "amount_bdt": poisha_to_bdt(amount), "due_date": due}):
                 shp.invoice_id = invoice_id
-                self._settlement(shp, inv_ms, amount)
+                self._settlement(shp, inv_ms, amount, due)
         delivered = between(self.rng, ms, timedelta(hours=18), timedelta(hours=60))
         if self.em.emit("mfg.shipment", "mfg-wms", delivered,
                         {"shipment_id": shp.shipment_id, "order_id": order_id, "warehouse_id": wh, "sku": sku,
@@ -148,12 +149,19 @@ class ManufacturingSimulator:
                     and self.em.roll(self.rng, "PRODUCT_RETURN", self.cfg.return_prob)):
                 self._return(shp, return_ms)
 
-    def _settlement(self, shp: Shipment, inv_ms: int, amount: int) -> None:
-        # ~40% of dealers pay within three days; the rest pay later, mostly outside the simulated window.
-        if self.rng.random() < 0.4:
-            pay_ms = between(self.rng, inv_ms, timedelta(hours=4), timedelta(days=3))
+    def _settlement(self, shp: Shipment, inv_ms: int, amount: int, due: str) -> None:
+        if self.em.roll(self.rng, "DEALER_NON_PAYMENT", self.cfg.dealer_non_payment_prob):
+            self.em.anomaly("DEALER_NON_PAYMENT", "mfg", {"invoice_id": shp.invoice_id, "due_date": due,
+                            "amount_bdt": poisha_to_bdt(amount)}, "invoice is never settled")
+            return
+        # Due at the end of the due date (Asia/Dhaka). Most dealers pay within terms, the rest up to
+        # LATE_PAYMENT_MAX after the due date; payments after the simulated window are simply not emitted.
+        due_end_ms = dhaka_midnight_ms(date.fromisoformat(due)) + DAY_MS
+        late = self.rng.random() < self.cfg.late_payment_share
+        if late:
+            pay_ms = between(self.rng, due_end_ms, timedelta(minutes=1), LATE_PAYMENT_MAX)
         else:
-            pay_ms = between(self.rng, inv_ms, timedelta(days=3), timedelta(days=shp.dealer.credit_days + 10))
+            pay_ms = self.rng.randint(inv_ms + 4 * HOUR_MS, max(inv_ms + 4 * HOUR_MS, due_end_ms - 60_000))
         if pay_ms >= self.em.end_ms:
             return  # not paid yet within the simulated window
         paid = amount
@@ -168,6 +176,11 @@ class ManufacturingSimulator:
                             {"invoice_id": shp.invoice_id, "settlement_id": event["payload"]["settlement_id"],
                              "invoice_bdt": poisha_to_bdt(amount), "settled_bdt": poisha_to_bdt(paid)},
                             "dealer settlement differs from invoice amount")
+        if event is not None and late:
+            self.em.anomaly("DELAYED_DEALER_PAYMENT", "mfg",
+                            {"invoice_id": shp.invoice_id, "settlement_id": event["payload"]["settlement_id"],
+                             "hours_after_due": (pay_ms - due_end_ms) // HOUR_MS},
+                            "benign: paid after the due date; must never be confirmed as non-payment")
 
     def _return(self, shp: Shipment, ms: int) -> None:
         return_id = self.em.business_id("RET")
@@ -241,7 +254,9 @@ class ManufacturingSimulator:
             wh = self.rng.choice(self.warehouses).warehouse_id
             sku = self.rng.choice(PRODUCTS)[0]
             fake_ref = self.em.business_id("SCA")  # an approval id that is never emitted
-            ms = self.em.end_ms - self.rng.randint(2, 40) * HOUR_MS
+            # anywhere from the second day to two hours before the end, so long runs can confirm them
+            first_ms = min(dhaka_midnight_ms(self.cfg.start_date) + DAY_MS, self.em.end_ms - 40 * HOUR_MS)
+            ms = self.rng.randint(first_ms, self.em.end_ms - 2 * HOUR_MS)
             delta = -self.rng.randint(1, 5)
             self._movement(ms, wh, sku, delta, "ADJUSTMENT", fake_ref)
             self.em.anomaly("UNAUTHORIZED_ADJUSTMENT", "mfg",

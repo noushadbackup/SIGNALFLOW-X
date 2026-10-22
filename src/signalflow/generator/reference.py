@@ -106,8 +106,7 @@ def build_dealers(count: int, rng: random.Random) -> list[Dealer]:
     for i in range(1, count + 1):
         region = rng.choices(REGION_CODES, REGION_WEIGHTS)[0]
         tier = rng.choices(["A", "B", "C"], [0.15, 0.35, 0.5])[0]
-        dealers.append(
-            Dealer(f"DLR-{i:04d}", f"{region.title()} Electronics Outlet {i:04d}", region, tier,
-                   {"A": 45, "B": 30, "C": 15}[tier])
-        )
+        credit_days = {"A": 30, "B": 15, "C": 3}[tier]  # small C outlets buy on 3-day terms
+        name = f"{region.title()} Electronics Outlet {i:04d}"
+        dealers.append(Dealer(f"DLR-{i:04d}", name, region, tier, credit_days))
     return dealers

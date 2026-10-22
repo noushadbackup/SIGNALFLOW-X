@@ -174,11 +174,18 @@ class TelecomSimulator:
             self.em.anomaly("MISSING_BILLING", "telecom", {"recharge_id": payload["recharge_id"]},
                             "successful recharge has no billing_charge")
         else:
-            self.em.emit("telecom.billing_charge", "tel-billing", between(self.rng, ms, timedelta(seconds=2),
-                         timedelta(seconds=40)),
-                         {"charge_id": self.em.business_id("CHG"), "recharge_id": payload["recharge_id"],
-                          "subscriber_id": sub.subscriber_id, "amount_bdt": poisha_to_bdt(amount),
-                          "charge_type": "RECHARGE_CREDIT"})
+            charge_ms = between(self.rng, ms, timedelta(seconds=2), timedelta(seconds=40))
+            delayed = payment_ref is None and self.em.roll(self.rng, "DELAYED_BILLING", self.cfg.delayed_billing_prob)
+            arrival = between(self.rng, charge_ms, timedelta(hours=2), timedelta(hours=20)) if delayed else None
+            charge = self.em.emit("telecom.billing_charge", "tel-billing", charge_ms,
+                                  {"charge_id": self.em.business_id("CHG"), "recharge_id": payload["recharge_id"],
+                                   "subscriber_id": sub.subscriber_id, "amount_bdt": poisha_to_bdt(amount),
+                                   "charge_type": "RECHARGE_CREDIT"}, arrival_ms=arrival)
+            if charge is not None and arrival is not None:
+                self.em.anomaly("DELAYED_BILLING", "telecom",
+                                {"recharge_id": payload["recharge_id"], "event_id": charge["event_id"],
+                                 "delay_seconds": (arrival - charge_ms) // 1000},
+                                "benign: billing arrives late; a temporary gap that must never be confirmed")
         if payment_ref is None and self.em.roll(self.rng, "DUPLICATE_PAYMENT_CHARGE",
                                                    self.cfg.duplicate_payment_prob):
             dup = self._recharge(sub, between(self.rng, ms, timedelta(seconds=30), timedelta(minutes=3)), day_index,

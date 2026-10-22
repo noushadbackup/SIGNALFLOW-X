@@ -88,7 +88,7 @@ def test_every_scenario_is_present_in_small_runs(dataset: Path) -> None:
     for kind in ("MISSING_BILLING", "DUPLICATE_PAYMENT_CHARGE", "ACTIVATION_WITHOUT_CAPTURE", "SETTLEMENT_MISMATCH",
                  "SHIPMENT_WITHOUT_INVOICE", "DEALER_SETTLEMENT_MISMATCH", "DOUBLE_REFUND", "UNAUTHORIZED_ADJUSTMENT",
                  "TECH_DUPLICATE", "SCHEMA_BREAK", "EVENT_ID_CONFLICT", "LATE_WITHIN_WATERMARK",
-                 "LATE_BEYOND_WATERMARK"):
+                 "LATE_BEYOND_WATERMARK", "DEALER_NON_PAYMENT", "DELAYED_BILLING"):
         assert manifest["anomalies_by_type"].get(kind, 0) >= 1, kind
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -33,9 +34,11 @@ class RunSummary:
 
 
 def ingest_and_process(conn: psycopg.Connection, data_dir: Path, chunk_size: int = 5000,
-                       fail_after_rows: int | None = None, files: list[Path] | None = None) -> RunSummary:
+                       fail_after_rows: int | None = None, files: list[Path] | None = None,
+                       after_file: Callable[[psycopg.Connection], object] | None = None) -> RunSummary:
     """Replay arrival files in order, processing after each file, so every file is one micro-batch window.
-    This mirrors a streaming job triggered once per arrival interval."""
+    This mirrors a streaming job triggered once per arrival interval. ``after_file`` runs once the file's batch
+    is committed (the lite profile runs the Leak Hunter there, as Airflow does on a schedule in the full one)."""
     registry = ContractRegistry.load(CONTRACTS_DIR)
     summary = RunSummary()
     for path in files if files is not None else arrival_files(data_dir / "arrivals"):
@@ -44,6 +47,8 @@ def ingest_and_process(conn: psycopg.Connection, data_dir: Path, chunk_size: int
         summary.lines += result.lines
         summary.bronze_inserted += result.inserted
         summary.batches += process(conn, registry, chunk_size=chunk_size, fail_after_rows=fail_after_rows)
+        if after_file is not None:
+            after_file(conn)
     return summary
 
 

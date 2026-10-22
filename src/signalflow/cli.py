@@ -25,14 +25,21 @@ def _cmd_migrate(_: argparse.Namespace) -> dict[str, Any]:
 
 
 def _cmd_run(args: argparse.Namespace) -> dict[str, Any]:
+    from .assurance.hunter import hunt
     from .pipeline import ingest_and_process, prepare, run_dbt
 
     data_dir = Path(args.data)
+    runs = []
     with connect() as conn:
         prepare(conn, data_dir)
-        summary = ingest_and_process(conn, data_dir, chunk_size=args.chunk_size)
+        summary = ingest_and_process(conn, data_dir, chunk_size=args.chunk_size,
+                                     after_file=None if args.no_hunt else lambda c: runs.append(hunt(c)))
     result: dict[str, Any] = {"files": summary.files, "lines": summary.lines,
                               "bronze_inserted": summary.bronze_inserted, "silver_accepted": summary.accepted}
+    if runs:
+        result["leak_hunter"] = {"runs": len(runs), "opened": sum(r.opened for r in runs),
+                                 "auto_cleared": sum(r.auto_cleared for r in runs),
+                                 "status_changes": sum(r.status_changes for r in runs)}
     if not args.skip_dbt:
         proc = run_dbt("build")
         result["dbt_returncode"] = proc.returncode
@@ -158,6 +165,90 @@ def _cmd_lake(args: argparse.Namespace) -> dict[str, Any]:
     raise SystemExit(f"unknown lake action {args.action}")
 
 
+def _use_database(database: str | None) -> None:
+    import os
+
+    if database:
+        os.environ["PGDATABASE"] = database
+
+
+def _operator_password(env: str, confirm: bool = False) -> str:
+    import getpass
+    import os
+
+    if os.environ.get(env):
+        return os.environ[env]
+    if not sys.stdin.isatty():
+        raise SystemExit(f"set {env} or run interactively to enter the password")
+    password = getpass.getpass("Password: ")
+    if confirm and getpass.getpass("Repeat password: ") != password:
+        raise SystemExit("passwords differ")
+    return password
+
+
+def _cmd_assurance(args: argparse.Namespace) -> dict[str, Any]:
+    from .assurance import cases
+    from .assurance.hunter import hunt
+    from .security import authenticate
+
+    _use_database(args.database)
+    with connect() as conn:
+        migrate(conn)
+        if args.action == "hunt":
+            return hunt(conn).as_dict()
+        if args.action == "cases":
+            rows = conn.execute(
+                """SELECT case_id, rule_id, status, resolution, business_unit, exposure_bdt, summary
+                   FROM assurance.cases WHERE (%(status)s::text IS NULL OR status = %(status)s)
+                     AND (%(rule)s::text IS NULL OR rule_id = %(rule)s)
+                   ORDER BY anchor_time DESC LIMIT %(limit)s""",
+                {"status": args.status, "rule": args.rule, "limit": args.limit}).fetchall()
+            keys = ("case_id", "rule_id", "status", "resolution", "business_unit", "exposure_bdt", "summary")
+            return {"cases": [dict(zip(keys, r, strict=True)) for r in rows]}
+        if args.action == "show":
+            case = conn.execute("SELECT row_to_json(c) FROM assurance.cases c WHERE case_id = %s",
+                                (args.case,)).fetchone()
+            if case is None:
+                raise SystemExit(f"unknown case {args.case}")
+            history = [r[0] for r in conn.execute(
+                "SELECT row_to_json(e) FROM assurance.case_events e WHERE case_id = %s ORDER BY case_event_id",
+                (args.case,))]
+            return {"case": case[0], "history": history}
+        if not args.user:
+            raise SystemExit("--user is required for case actions")
+        op = authenticate(conn, args.user, _operator_password("SIGNALFLOW_OPERATOR_PASSWORD"))
+        if op is None:
+            raise SystemExit("authentication failed")
+        if args.action == "note":
+            cases.add_note(conn, op, args.case, args.note or "")
+        elif args.action == "assign":
+            cases.assign(conn, op, args.case, args.assignee, args.expected_version)
+        elif args.action == "resolve":
+            cases.resolve(conn, op, args.case, args.resolution or "", args.note or "", args.expected_version)
+        elif args.action == "reopen":
+            cases.reopen(conn, op, args.case, args.note or "", args.expected_version)
+        return {"case_id": args.case, "action": args.action, "by": op.username}
+
+
+def _cmd_operators(args: argparse.Namespace) -> dict[str, Any]:
+    from .security import add_operator, set_disabled
+
+    _use_database(args.database)
+    with connect() as conn:
+        migrate(conn)
+        if args.action == "add":
+            op = add_operator(conn, args.username, args.name or args.username, args.role,
+                              _operator_password("SIGNALFLOW_NEW_OPERATOR_PASSWORD", confirm=True))
+            return {"username": op.username, "role": op.role}
+        if args.action in ("disable", "enable"):
+            return {"username": args.username,
+                    "updated": set_disabled(conn, args.username, args.action == "disable")}
+        rows = conn.execute("SELECT username, display_name, role, disabled, created_at FROM ops.operators "
+                            "ORDER BY username").fetchall()
+        return {"operators": [dict(zip(("username", "display_name", "role", "disabled", "created_at"), r,
+                                       strict=True)) for r in rows]}
+
+
 def _cmd_bi(args: argparse.Namespace) -> dict[str, Any]:
     import os
 
@@ -188,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--data", required=True)
     r.add_argument("--chunk-size", type=int, default=5000)
     r.add_argument("--skip-dbt", action="store_true")
+    r.add_argument("--no-hunt", action="store_true", help="do not run the Leak Hunter after each arrival file")
     r.set_defaults(func=_cmd_run)
 
     s = sub.add_parser("status", help="show pipeline state")
@@ -212,6 +304,28 @@ def main(argv: list[str] | None = None) -> int:
     lk.add_argument("--retain-last", type=int, default=50, help="maintain: snapshots always kept per table")
     lk.add_argument("--yes", action="store_true")
     lk.set_defaults(func=_cmd_lake)
+
+    asr = sub.add_parser("assurance", help="Revenue Leak Hunter: run rules, list and act on cases")
+    asr.add_argument("action", choices=["hunt", "cases", "show", "note", "assign", "resolve", "reopen"])
+    asr.add_argument("--database", help="Postgres database (default PGDATABASE)")
+    asr.add_argument("--case")
+    asr.add_argument("--status", choices=["PENDING", "SUSPICIOUS", "CONFIRMED_BY_RULE", "RESOLVED"])
+    asr.add_argument("--rule")
+    asr.add_argument("--limit", type=int, default=50)
+    asr.add_argument("--user", help="operator username (password from SIGNALFLOW_OPERATOR_PASSWORD or a prompt)")
+    asr.add_argument("--note")
+    asr.add_argument("--assignee")
+    asr.add_argument("--resolution")
+    asr.add_argument("--expected-version", type=int)
+    asr.set_defaults(func=_cmd_assurance)
+
+    ops_ = sub.add_parser("operators", help="control tower operators and roles")
+    ops_.add_argument("action", choices=["add", "list", "disable", "enable"])
+    ops_.add_argument("username", nargs="?")
+    ops_.add_argument("--role", choices=["viewer", "analyst", "operator", "admin"], default="viewer")
+    ops_.add_argument("--name", help="display name")
+    ops_.add_argument("--database", help="Postgres database (default PGDATABASE)")
+    ops_.set_defaults(func=_cmd_operators)
 
     bi = sub.add_parser("bi", help="Superset assets (Trino connection, datasets, charts, dashboard)")
     bi.add_argument("action", choices=["bootstrap"])

@@ -36,7 +36,7 @@ def _injected_late(data: Path) -> set[str]:
     out = set()
     for raw in (data / "truth" / "anomalies.jsonl").read_text().splitlines():
         a = json.loads(raw)
-        if a["anomaly_type"].startswith("LATE_"):
+        if a["anomaly_type"].startswith("LATE_") or a["anomaly_type"] == "DELAYED_BILLING":
             out.add(a["refs"]["event_id"])
     return out
 
