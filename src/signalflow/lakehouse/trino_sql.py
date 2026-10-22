@@ -10,7 +10,7 @@ from .settings import CATALOG, LakeSettings
 def connect(settings: LakeSettings) -> Any:
     import trino
 
-    return trino.dbapi.connect(  # type: ignore[no-untyped-call]
+    return trino.dbapi.connect(  # type: ignore[no-untyped-call,unused-ignore]  # untyped only when the lake extra is installed
         host=settings.trino_host, port=settings.trino_port, user="signalflow", catalog=CATALOG, http_scheme="http")
 
 

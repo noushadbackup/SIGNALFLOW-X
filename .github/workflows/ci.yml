@@ -5,6 +5,16 @@ on:
     branches: [main]
   pull_request:
 
+# Docker Compose interpolates every service, whatever profile is started, so each job that uses compose needs every
+# required variable. These are throwaway values for CI containers, not secrets.
+env:
+  SIGNALFLOW_CDC_PASSWORD: ci-only-cdc-password
+  SIGNALFLOW_S3_ACCESS_KEY: ci-only-access-key
+  SIGNALFLOW_S3_SECRET_KEY: ci-only-secret-key
+  AIRFLOW_JWT_SECRET: ci-only-jwt-secret-0123456789abcdef
+  SUPERSET_SECRET_KEY: ci-only-superset-secret-key
+  SUPERSET_ADMIN_PASSWORD: ci-only-admin-password
+
 jobs:
   test:
     runs-on: ubuntu-24.04
@@ -51,7 +61,6 @@ jobs:
       PGUSER: signalflow
       PGPASSWORD: ci-only-password        # throwaway CI container credentials, not secrets
       PGDATABASE: signalflow
-      SIGNALFLOW_CDC_PASSWORD: ci-only-cdc-password
       KAFKA_PORT: "59092"
       CONNECT_PORT: "58083"
       SIGNALFLOW_KAFKA_BOOTSTRAP: 127.0.0.1:59092
@@ -95,14 +104,8 @@ jobs:
       PGUSER: signalflow
       PGPASSWORD: ci-only-password        # throwaway CI container credentials, not secrets
       PGDATABASE: signalflow
-      SIGNALFLOW_CDC_PASSWORD: ci-only-cdc-password
-      SIGNALFLOW_S3_ACCESS_KEY: ci-only-access-key
-      SIGNALFLOW_S3_SECRET_KEY: ci-only-secret-key
       SIGNALFLOW_S3_ENDPOINT: http://127.0.0.1:58333
       SIGNALFLOW_LAKE_SOURCE_DB: signalflow
-      AIRFLOW_JWT_SECRET: ci-only-jwt-secret-0123456789abcdef
-      SUPERSET_SECRET_KEY: ci-only-superset-secret-key
-      SUPERSET_ADMIN_PASSWORD: ci-only-admin-password
       SIGNALFLOW_REQUIRE_LAKE: "1"        # missing infrastructure fails the job instead of skipping tests
     steps:
       - uses: actions/checkout@v5
