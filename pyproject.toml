@@ -17,6 +17,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest==9.1.1", "ruff==0.14.0", "mypy==1.18.2"]
 ui = ["streamlit==1.50.0", "plotly==6.3.0"]
+stream = ["pyspark==4.0.3", "confluent-kafka==2.12.0", "pandas==2.3.3", "pyarrow==21.0.0"]
 
 [project.scripts]
 signalflow = "signalflow.cli:main"
@@ -26,7 +27,10 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["integration: needs a PostgreSQL server reachable through PG* environment variables"]
+markers = [
+  "integration: needs a PostgreSQL server reachable through PG* environment variables",
+  "stream: needs the stream compose profile (Kafka, Kafka Connect), Java 17+ and the Spark jars",
+]
 
 [tool.ruff]
 line-length = 120

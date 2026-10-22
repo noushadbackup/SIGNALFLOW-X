@@ -62,6 +62,47 @@ def _cmd_status(_: argparse.Namespace) -> dict[str, Any]:
         }
 
 
+def _cmd_stream(args: argparse.Namespace) -> dict[str, Any]:
+    from . import CONTRACTS_DIR
+    from .contracts import ContractRegistry
+    from .streaming import admin
+    from .streaming.settings import StreamSettings
+
+    settings = StreamSettings.from_env()
+    if args.action == "init":
+        return admin.init(settings, Path(args.data))
+    if args.action == "status":
+        return admin.status(settings)
+    if args.action == "replay":
+        from .streaming.replay import replay
+
+        stats = replay(Path(args.data), settings, ContractRegistry.load(CONTRACTS_DIR), pace_ms=args.pace_ms)
+        return {"files": stats.files, "telecom_messages": stats.telecom_messages, "erp_events": stats.erp_events,
+                "unparseable": stats.unparseable, "by_topic": dict(sorted(stats.by_topic.items()))}
+    if args.action == "storm":
+        from .streaming.replay import duplicate_storm
+
+        return {"messages_resent": duplicate_storm(Path(args.data), settings, ContractRegistry.load(CONTRACTS_DIR),
+                                                   copies=args.copies)}
+    if args.action == "silver":
+        from .streaming import spark_silver
+
+        argv = ["--trigger-seconds", str(args.trigger_seconds)] + (["--available-now"] if args.available_now else [])
+        return {"exit_code": spark_silver.main(argv)}
+    if args.action == "transform":
+        from .pipeline import run_dbt
+
+        proc = run_dbt("build", database=settings.stream_db)
+        if proc.returncode != 0:
+            sys.stderr.write(proc.stdout)
+        return {"dbt_returncode": proc.returncode, "dbt_summary": proc.stdout.strip().splitlines()[-3:]}
+    if args.action == "teardown":
+        if args.drop_databases and not args.yes:
+            raise SystemExit("--drop-databases deletes the streaming and ERP databases; add --yes to confirm")
+        return admin.teardown(settings, drop_databases=args.drop_databases)
+    raise SystemExit(f"unknown stream action {args.action}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="signalflow")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -89,10 +130,23 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("status", help="show pipeline state")
     s.set_defaults(func=_cmd_status)
 
+    st = sub.add_parser("stream", help="streaming profile (Kafka, Debezium, Spark)")
+    st.add_argument("action", choices=["init", "replay", "silver", "storm", "transform", "status", "teardown"])
+    st.add_argument("--data", default="data/seed7")
+    st.add_argument("--pace-ms", type=int, default=0, help="replay: pause between arrival files")
+    st.add_argument("--copies", type=int, default=3, help="storm: extra copies of each recharge event")
+    st.add_argument("--trigger-seconds", type=float, default=2.0)
+    st.add_argument("--available-now", action="store_true", help="silver: drain what is in Kafka, then stop")
+    st.add_argument("--drop-databases", action="store_true")
+    st.add_argument("--yes", action="store_true")
+    st.set_defaults(func=_cmd_stream)
+
     args = parser.parse_args(argv)
     result = args.func(args)
     print(json.dumps(result, indent=2, default=str))
-    return int(result.get("dbt_returncode", 0)) if isinstance(result, dict) else 0
+    if isinstance(result, dict):
+        return int(result.get("dbt_returncode", 0)) or int(result.get("exit_code", 0))
+    return 0
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # ADR-0003: Transactional outbox + Debezium for ERP; direct producers for telecom
 
-**Status:** Accepted (implementation in Phase 2)
+**Status:** Accepted; implemented in Phase 2 (2026-10-22): `src/signalflow/erp.py`, `streaming/connect.py`, tests in `tests/stream/`
 
 ## Context
 The brief asks for Debezium CDC. Raw table-level CDC from an ERP produces row-change events (`before/after`), which

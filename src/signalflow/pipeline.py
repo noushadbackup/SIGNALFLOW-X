@@ -52,10 +52,14 @@ def prepare(conn: psycopg.Connection, data_dir: Path) -> None:
     load_reference(conn, data_dir / "reference")
 
 
-def run_dbt(command: str = "build", extra: list[str] | None = None) -> subprocess.CompletedProcess[str]:
+def run_dbt(command: str = "build", extra: list[str] | None = None,
+            database: str | None = None) -> subprocess.CompletedProcess[str]:
+    """Run dbt against PGDATABASE, or against ``database`` (e.g. the streaming profile's database)."""
     args = ["dbt", "--no-use-colors", command, "--project-dir", str(DBT_DIR), "--profiles-dir", str(DBT_DIR)]
     args += extra or []
     env = dict(os.environ, DBT_SEND_ANONYMOUS_USAGE_STATS="false")
+    if database:
+        env["PGDATABASE"] = database
     log.info("dbt start", extra={"dbt_args": args[1:]})
     proc = subprocess.run(args, capture_output=True, text=True, env=env, cwd=DBT_DIR)
     log.info("dbt finished", extra={"returncode": proc.returncode})

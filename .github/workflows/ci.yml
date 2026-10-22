@@ -40,3 +40,46 @@ jobs:
         run: pytest tests/unit -q
       - name: End-to-end acceptance tests (real PostgreSQL)
         run: pytest tests/integration -q -rA
+
+  stream:
+    # Phase 2 acceptance: Kafka + Kafka Connect/Debezium in containers, Spark in local mode on the runner.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: signalflow
+      PGPASSWORD: ci-only-password        # throwaway CI container credentials, not secrets
+      PGDATABASE: signalflow
+      SIGNALFLOW_CDC_PASSWORD: ci-only-cdc-password
+      KAFKA_PORT: "59092"
+      CONNECT_PORT: "58083"
+      SIGNALFLOW_KAFKA_BOOTSTRAP: 127.0.0.1:59092
+      SIGNALFLOW_CONNECT_URL: http://127.0.0.1:58083
+      SIGNALFLOW_REQUIRE_STREAM: "1"      # missing infrastructure fails the job instead of skipping tests
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: pip install -e ".[dev,stream]"
+      - uses: actions/cache@v4
+        with:
+          path: .cache/artifacts
+          key: artifacts-${{ hashFiles('scripts/fetch_artifacts.sh') }}
+      - name: Fetch pinned JVM artifacts (SHA-1 verified)
+        run: scripts/fetch_artifacts.sh
+      - name: Start Postgres, Kafka, Kafka Connect + Debezium
+        run: docker compose --profile stream up -d --build --wait
+      - name: Stream acceptance tests
+        run: pytest tests/stream -q -rA
+      - name: Spark job image builds
+        run: docker compose --profile stream --profile stream-job build spark-silver
+      - name: Container logs on failure
+        if: failure()
+        run: docker compose --profile stream logs --tail 300

@@ -31,11 +31,11 @@ flowchart LR
 The same contracts, layer semantics and tests apply to both profiles. The lite profile is not a toy: it is the
 reference implementation used to check the distributed one (differential testing, Phase 3).
 
-| Concern | `lite` (Phase 1, runs today) | `full` (Phases 2–5, planned) |
-|---------|------------------------------|------------------------------|
-| Transport | JSONL arrival files, ingested in arrival order | Kafka 4.x (KRaft); Debezium outbox CDC for ERP |
-| Bronze | `bronze.raw_events` in Postgres | Iceberg table on S3-compatible storage |
-| Silver | Python micro-batch processor, transactional checkpoint | PySpark Structured Streaming, checkpoint + idempotent MERGE |
+| Concern | `lite` (Phase 1, runs today) | `stream` (Phase 2, runs today) | `full` (Phases 3–5, planned) |
+|---------|------------------------------|--------------------------------|------------------------------|
+| Transport | JSONL arrival files, ingested in arrival order | Kafka 4.1.1 (KRaft); telecom producers; ERP outbox → Debezium 3.6.3 | same as `stream` |
+| Bronze | `bronze.raw_events` in Postgres | same table, written by Spark (`source_stream = kafka:<topic>`) | Iceberg table on S3-compatible storage |
+| Silver | Python micro-batch processor, transactional checkpoint | Spark 4.0.3 Structured Streaming, validation on executors, same Silver rules, batch-id commit marker (ADR-0008) | Spark → Iceberg `MERGE` |
 | Gold | dbt on Postgres | dbt on Trino over Iceberg |
 | Orchestration | `signalflow` CLI / Makefile | Airflow |
 | BI | Streamlit (Phase 6) | Superset + Streamlit |
@@ -52,6 +52,27 @@ flowchart TB
     S1 -.-> OPS
   end
 ```
+
+### Stream profile (Phase 2)
+
+```mermaid
+flowchart LR
+  A["arrival files<br/>(source simulator)"] -->|"telecom events<br/>idempotent producer, key = event_id"| K[("Kafka 4.1.1 KRaft<br/>1 topic per type + major version<br/>+ unrouted per domain")]
+  A -->|"mfg events"| ERP[("ERP database<br/>erp.documents + erp.outbox<br/>one transaction")]
+  ERP -->|"WAL · pgoutput"| DZ["Debezium 3.6.3<br/>Outbox Event Router"]
+  ERP -->|"table CDC<br/>dealers · products · warehouses"| DZM["Debezium<br/>master-data connector"]
+  DZ --> K
+  DZM -->|"<prefix>.erpcdc.*"| K
+  K -->|"subscribePattern"| SP["Spark Structured Streaming<br/>mapInPandas validation"]
+  SP -->|"foreachBatch: 1 Postgres txn per batch<br/>+ ops.stream_commits(batch_id)"| PG[("bronze / silver / ops<br/>stream database")]
+  SP --> MD[("bronze.master_data_changes")]
+  PG --> DBT["same dbt project"] --> G[("gold")]
+```
+
+Secrets: the Debezium password reaches the Connect worker as an environment variable and is referenced in the
+connector config as `${env:CDC_PASSWORD}` (Kafka's `EnvVarConfigProvider`), so it never travels through the REST
+API or into the `_connect_configs` topic. Debezium logs in as a dedicated `LOGIN REPLICATION` role with read-only
+grants; publications are created by `signalflow stream init` as the table owner.
 
 ## 3. Layer contracts
 
@@ -135,7 +156,7 @@ erDiagram
 | `mart_mfg_production_daily` | business date × factory × category | composite | includes disruption days |
 | `mart_telecom_usage_daily` | business date × serving region × usage type | composite | |
 
-## 6. Full-profile design *(planned)*
+## 6. Full-profile design *(planned; the Kafka/Debezium/Spark half runs today as the `stream` profile)*
 
 ```mermaid
 flowchart LR
@@ -159,10 +180,11 @@ Key decisions are recorded as ADRs in [`docs/adr/`](adr).
 |---|------|-----------|--------|-----------|
 | R1 | Full profile exceeds WSL2 memory on a 16 GB laptop | High | High | profiles; per-service memory limits; Airflow/Superset only in `full`; measured RAM in reports |
 | R2 | MinIO community images are no longer published the way they used to be; the image could not be pulled in the build environment | Medium | Medium | treat storage as "S3-compatible"; pin a known MinIO release where pullable, SeaweedFS as tested fallback (ADR-0005, verified in Phase 3) |
-| R3 | Debezium 3.x images are on quay.io, which this build environment cannot reach | Medium | Medium | Debezium 2.7.3 on Docker Hub works with Kafka 4 brokers; pin whichever the Phase 2 spike proves |
-| R4 | Spark ↔ Iceberg ↔ Kafka connector version drift | Medium | High | one compatibility spike in Phase 2 before any streaming code; versions pinned in ADR-0005 |
-| R5 | Two Silver implementations (Python lite, Spark full) drift apart | Medium | High | shared JSON Schema contracts; differential test on the same seed must produce identical event-id sets and totals |
+| R3 | Debezium 3.x images are on quay.io, which this build environment cannot reach | Medium | Medium | **resolved in Phase 2:** Connect image built from the official Kafka 4.1.1 image + the Debezium 3.6.3 plugin from Maven Central (checksummed) |
+| R4 | Spark ↔ Iceberg ↔ Kafka connector version drift | Medium | High | Phase 2 spike pinned Spark 4.0.3 + Kafka connector 4.0.3 / kafka-clients 3.9.1; Iceberg runtime pairing checked for Spark 4.0 (ADR-0005) |
+| R5 | Two Silver implementations (Python lite, Spark full) drift apart | Medium | High | **one** implementation of the Silver rules (`apply_validated`) used by both paths; stream tests require identical Silver/quarantine fingerprints vs the lite run on the same seed |
 | R6 | Synthetic data too regular to be credible | Medium | Medium | Dhaka hourly demand curve, regional weights, segment behaviour, Fri/Sat effects, supply disruptions |
 | R7 | Ground truth leaks into detection logic | Low | High | truth written outside pipeline paths; source-scan test; detection rules reviewed against ledger fields |
 | R8 | Docker Hub rate limits during setup | Medium | Low | compose file uses `mirror.gcr.io` defaults overridable via env |
+| R10 | Debezium replication slot pins WAL (idle ERP, or a slot left behind) | Medium | High (disk fills) | heartbeat action query advances the slot; teardown drops slots and resets connector offsets; slot lag shown by `stream status` (alerting in Phase 5) |
 | R9 | Overclaiming (exactly-once, "production ready") | Medium | High (credibility) | every guarantee in docs links to the test that demonstrates it |
