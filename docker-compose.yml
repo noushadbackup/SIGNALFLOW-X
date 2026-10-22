@@ -214,6 +214,8 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
       seaweedfs: {condition: service_healthy}
+      # `up --wait` accepts a one-shot container's exit only when something depends on its completion
+      lake-bucket: {condition: service_completed_successfully}
     environment:
       PGUSER: ${PGUSER}
       PGPASSWORD: ${PGPASSWORD}
