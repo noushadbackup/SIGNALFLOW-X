@@ -69,12 +69,19 @@ def init_erp(settings: StreamSettings, reference_dir: Path) -> None:
             if not conn.execute("SELECT 1 FROM pg_publication WHERE pubname = %s", (pub,)).fetchone():
                 conn.execute(sql.SQL("CREATE PUBLICATION {} FOR TABLE {}").format(
                     sql.Identifier(pub), sql.SQL(", ").join(sql.Identifier("erp", t) for t in tables)))
+                continue
+            present = {t for (t,) in conn.execute(
+                "SELECT tablename FROM pg_publication_tables WHERE pubname = %s AND schemaname = 'erp'", (pub,))}
+            for t in tables:  # publications created before a table was added to them (e.g. the heartbeat)
+                if t not in present:
+                    conn.execute(sql.SQL("ALTER PUBLICATION {} ADD TABLE {}").format(
+                        sql.Identifier(pub), sql.Identifier("erp", t)))
     log.info("erp initialised", extra={"database": settings.erp_db})
 
 
 def publications(settings: StreamSettings) -> dict[str, tuple[str, ...]]:
     return {f"sfx_outbox_{settings.slot_suffix}": ("outbox", "cdc_heartbeat"),
-            f"sfx_master_{settings.slot_suffix}": MASTER_TABLES}
+            f"sfx_master_{settings.slot_suffix}": (*MASTER_TABLES, "cdc_heartbeat")}
 
 
 class ErpApp:

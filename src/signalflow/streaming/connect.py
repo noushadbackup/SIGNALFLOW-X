@@ -33,12 +33,7 @@ def outbox_connector(s: StreamSettings) -> tuple[str, dict[str, str]]:
         "table.include.list": "erp.outbox",
         "snapshot.mode": "no_data",  # registered before the ERP writes anything; every outbox insert is streamed
         "tombstones.on.delete": "false",
-        "heartbeat.interval.ms": "5000",
-        "heartbeat.action.query":
-            "INSERT INTO erp.cdc_heartbeat (id, beat_at) VALUES (1, now()) "
-            "ON CONFLICT (id) DO UPDATE SET beat_at = EXCLUDED.beat_at",
-        "topic.creation.default.replication.factor": "1",  # only the heartbeat topic is created this way
-        "topic.creation.default.partitions": "1",
+        **_heartbeat(1),
         "predicates": "isHeartbeat",
         "predicates.isHeartbeat.type": "org.apache.kafka.connect.transforms.predicates.TopicNameMatches",
         "predicates.isHeartbeat.pattern": "__debezium-heartbeat.*",
@@ -69,6 +64,7 @@ def master_data_connector(s: StreamSettings) -> tuple[str, dict[str, str]]:
         "table.include.list": ",".join(f"erp.{t}" for t in MASTER_DATA_TABLES),
         "snapshot.mode": "initial",  # current master data first (op = r), then every change
         "decimal.handling.mode": "string",
+        **_heartbeat(2),
         "transforms": "route",
         "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
         "transforms.route.regex": r".*\.erp\.(.*)",
@@ -77,6 +73,20 @@ def master_data_connector(s: StreamSettings) -> tuple[str, dict[str, str]]:
         "key.converter.schemas.enable": "false",
         "value.converter": "org.apache.kafka.connect.json.JsonConverter",
         "value.converter.schemas.enable": "false",
+    }
+
+
+def _heartbeat(row: int) -> dict[str, str]:
+    """Each connector writes its own row of erp.cdc_heartbeat, a table in its publication but not in its include list.
+    WAL is shared by every database in the cluster: without a change it can confirm, an idle slot pins all of it
+    (the master-data slot once held 6.5 GB on the demo machine). The heartbeat gives it one every few seconds."""
+    return {
+        "heartbeat.interval.ms": "5000",
+        "heartbeat.action.query":
+            f"INSERT INTO erp.cdc_heartbeat (id, beat_at) VALUES ({row}, now()) "
+            "ON CONFLICT (id) DO UPDATE SET beat_at = EXCLUDED.beat_at",
+        "topic.creation.default.replication.factor": "1",  # only the heartbeat topic is created this way
+        "topic.creation.default.partitions": "1",
     }
 
 

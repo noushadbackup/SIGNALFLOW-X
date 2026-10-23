@@ -94,6 +94,7 @@ def teardown(settings: StreamSettings, drop_databases: bool = False) -> dict[str
         log.warning("erp cleanup skipped", extra={"error": str(exc)[:500]})
     topics = delete_topics(settings.bootstrap, settings.topic_prefix)
     topics += delete_topics(settings.bootstrap, f"__debezium-heartbeat.{settings.topic_prefix}_erp")
+    topics += delete_topics(settings.bootstrap, f"__debezium-heartbeat.{settings.topic_prefix}_erpmd")
     shutil.rmtree(settings.state_dir / settings.topic_prefix, ignore_errors=True)
     if drop_databases:
         import psycopg

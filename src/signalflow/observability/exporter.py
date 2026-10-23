@@ -83,6 +83,8 @@ def collect(conn: psycopg.Connection) -> list[Metric]:
                                                             "in the latest differential check"),
         ("signalflow_chaos_runs", "counter", "Chaos Lab incident runs by incident and status"),
         ("signalflow_replays", "counter", "Data Time Machine replays by status"),
+        ("signalflow_replication_slot_retained_wal_bytes", "gauge", "WAL a logical replication slot keeps on disk "
+                                                                    "(cluster-wide; an idle slot pins all of it)"),
     )}
     for stream, n in _rows(conn, """SELECT split_part(coalesce(event_type, 'unknown.x'), '.', 1), count(*)
                                     FROM bronze.raw_events GROUP BY 1""", "bronze.raw_events"):
@@ -139,6 +141,12 @@ def collect(conn: psycopg.Connection) -> list[Metric]:
         m["signalflow_chaos_runs"].add(n, incident=inc, status=status)
     for status, n in _rows(conn, "SELECT status, count(*) FROM ops.replay_runs GROUP BY 1", "ops.replay_runs"):
         m["signalflow_replays"].add(n, status=status)
+    # pg_replication_slots is cluster-wide: readable from the control database, covering the ERP slots too.
+    for slot, database, active, retained in conn.execute(
+            """SELECT slot_name, coalesce(database, ''), active, pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)
+               FROM pg_replication_slots""").fetchall():
+        m["signalflow_replication_slot_retained_wal_bytes"].add(retained, slot=slot, database=database,
+                                                               active=str(active).lower())
     return list(m.values())
 
 

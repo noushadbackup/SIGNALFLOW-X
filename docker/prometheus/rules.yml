@@ -37,3 +37,9 @@ groups:
         labels: {severity: warning}
         annotations:
           summary: "The latest differential check found {{ $value }} Gold tables differing between Postgres and the lake"
+      - alert: SignalFlowReplicationSlotWalRetention
+        expr: signalflow_replication_slot_retained_wal_bytes > 1073741824
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Replication slot {{ $labels.slot }} keeps {{ $value | humanize1024 }}B of WAL; check its connector's heartbeat"

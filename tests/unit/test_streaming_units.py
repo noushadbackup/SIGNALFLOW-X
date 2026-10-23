@@ -12,6 +12,7 @@ import pytest
 
 from signalflow import CONTRACTS_DIR
 from signalflow.contracts import ContractRegistry
+from signalflow.erp import publications
 from signalflow.processing.silver import UNPARSEABLE, validate_message
 from signalflow.streaming.connect import master_data_connector, outbox_connector
 from signalflow.streaming.replay import read_line
@@ -70,6 +71,20 @@ def test_connectors_never_carry_secrets_and_route_with_the_prefix() -> None:
     assert outbox["transforms.outbox.route.topic.replacement"] == "sfx.${routedByValue}"
     assert outbox["snapshot.mode"] == "no_data"
     assert outbox["slot.name"] != master_data_connector(SETTINGS)[1]["slot.name"]
+
+
+def test_every_slot_has_a_heartbeat_on_a_table_in_its_publication() -> None:
+    """An idle logical slot pins the cluster's WAL (the master-data slot once held 6.5 GB): each connector must write
+    its own heartbeat row to a table its publication contains but its include list does not."""
+    pubs = publications(SETTINGS)
+    rows = set()
+    for _, config in (outbox_connector(SETTINGS), master_data_connector(SETTINGS)):
+        assert int(config["heartbeat.interval.ms"]) <= 10_000
+        query = config["heartbeat.action.query"]
+        assert "erp.cdc_heartbeat" in query and "cdc_heartbeat" in pubs[config["publication.name"]]
+        assert "erp.cdc_heartbeat" not in config["table.include.list"]
+        rows.add(query.split("VALUES (", 1)[1].split(",", 1)[0])
+    assert len(rows) == 2
 
 
 @pytest.mark.parametrize(("header", "expected"), [

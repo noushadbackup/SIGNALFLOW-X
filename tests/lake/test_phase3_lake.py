@@ -7,6 +7,7 @@ uses its own database and its own namespace prefix inside the Iceberg catalog, a
 from __future__ import annotations
 
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -101,7 +102,12 @@ def test_incremental_publication_then_dbt_on_trino_equals_lite_gold(lake_env: La
     assert lite.returncode == 0, lite.stdout[-3000:]
     lake = run_dbt_lake("build", settings=env.settings)
     assert lake.returncode == 0, lake.stdout[-3000:]
-    assert "PASS=100" in lake.stdout
+    # Both engines run the same nodes: the summaries match and nothing errored, warned or was skipped.
+    summaries = [re.search(r"Done\. PASS=(\d+) WARN=(\d+) ERROR=(\d+) SKIP=(\d+)", out.stdout)
+                 for out in (lite, lake)]
+    assert all(summaries), (lite.stdout[-500:], lake.stdout[-500:])
+    counts = [tuple(int(g) for g in m.groups()) for m in summaries if m]
+    assert counts[0] == counts[1] and counts[1][0] > 0 and counts[1][1:] == (0, 0, 0), counts
     diffs = compare_gold(env.settings, env.database)
     assert len(diffs) == 23
     for d in diffs:
