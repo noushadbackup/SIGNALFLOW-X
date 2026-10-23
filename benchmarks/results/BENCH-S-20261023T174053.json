@@ -1,0 +1,2604 @@
+{
+  "run_id": "BENCH-S-20261023T174053",
+  "workload": "S",
+  "status": "COMPLETED",
+  "error": null,
+  "config": {
+    "workload": {
+      "key": "S",
+      "days": 7,
+      "subscribers": 5000,
+      "dealers": 150,
+      "seed": 11,
+      "dataset_key": "seed11-7d-5000s-150d"
+    },
+    "generator": {
+      "seed": 11,
+      "start_date": "2026-10-01",
+      "days": 7,
+      "subscribers": 5000,
+      "recharge_rate": 1.0,
+      "package_purchase_prob": 0.12,
+      "usage_scale": 1.0,
+      "dealers": 150,
+      "warehouses": 4,
+      "order_prob": 0.35,
+      "return_prob": 0.05,
+      "disruptions": [
+        {
+          "factory_id": "FAC-01",
+          "day_index": 1,
+          "reason": "POWER_OUTAGE",
+          "hours": 18,
+          "severity": "HIGH"
+        }
+      ],
+      "late_within_prob": 0.01,
+      "late_beyond_prob": 0.002,
+      "duplicate_prob": 0.005,
+      "schema_break_count": 12,
+      "event_id_conflict_count": 2,
+      "unparseable_line_count": 1,
+      "v11_share": 0.3,
+      "missing_billing_prob": 0.004,
+      "duplicate_payment_prob": 0.002,
+      "activation_without_capture_prob": 0.006,
+      "settlement_mismatch_count": 1,
+      "shipment_without_invoice_prob": 0.01,
+      "dealer_short_payment_prob": 0.05,
+      "double_refund_count": 1,
+      "unauthorized_adjustment_count": 2,
+      "dealer_non_payment_prob": 0.01,
+      "delayed_billing_prob": 0.003,
+      "late_payment_share": 0.25,
+      "extra": {}
+    },
+    "params": {
+      "chunk_size": 5000,
+      "chunks": [
+        500,
+        2000,
+        5000,
+        20000
+      ],
+      "ingest_compare_lines": 20000,
+      "sql_reps": 20,
+      "kill_at": 0.4,
+      "profile_rows": 50000,
+      "load_shares": [
+        0.5,
+        0.9
+      ],
+      "load_seconds": 60
+    },
+    "experiments": [
+      "generation",
+      "ingest_comparison",
+      "continuous",
+      "gold",
+      "leak_hunter",
+      "sql_serving",
+      "time_machine",
+      "storage",
+      "drop_continuous",
+      "bronze_template",
+      "backfill",
+      "recovery",
+      "profile",
+      "load"
+    ],
+    "log_level": "WARNING"
+  },
+  "environment": {
+    "cpus": 4,
+    "cpus_usable": 4,
+    "cpu_model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "memory_gb": 15.7,
+    "platform": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "psycopg": "3.2.13",
+    "postgres": "16.15",
+    "postgres_settings": {
+      "shared_buffers": "256MB",
+      "work_mem": "32MB",
+      "max_wal_size": "1GB",
+      "synchronous_commit": "on",
+      "max_parallel_workers_per_gather": "2"
+    },
+    "git_commit": "c448e7a",
+    "git_dirty": false,
+    "postgres_container": "signalflow-postgres-1",
+    "containers_running": [
+      "signalflow-postgres-1"
+    ],
+    "load_average_at_start": [
+      0.83,
+      0.78,
+      1.01
+    ]
+  },
+  "experiments": {
+    "generation": {
+      "generated_now": true,
+      "seconds": 6.23,
+      "lines_per_second": 22869,
+      "arrival_files": 191,
+      "arrival_bytes": 66824452,
+      "lines": 142472,
+      "unique_valid_events": 141814,
+      "valid_events_by_type": {
+        "mfg.dealer_order": 306,
+        "mfg.dealer_settlement": 90,
+        "mfg.inventory_movement": 422,
+        "mfg.invoice": 265,
+        "mfg.order_status": 35,
+        "mfg.product_return": 4,
+        "mfg.production_batch": 77,
+        "mfg.refund": 5,
+        "mfg.shipment": 457,
+        "mfg.stock_count_approval": 14,
+        "mfg.supply_disruption": 1,
+        "telecom.billing_charge": 11407,
+        "telecom.channel_settlement": 24,
+        "telecom.package_activation": 3906,
+        "telecom.payment_capture": 3906,
+        "telecom.recharge": 11767,
+        "telecom.subscriber_lifecycle": 5221,
+        "telecom.usage_record": 103907
+      },
+      "technical_duplicates": 643,
+      "quarantine_expected": 15,
+      "experiment_seconds": 6.23
+    },
+    "ingest_comparison": {
+      "files": 22,
+      "lines": 21417,
+      "row_by_row_insert": {
+        "seconds": 7.557,
+        "python_cpu_seconds": 2.568,
+        "python_cores": 0.34,
+        "postgres_cpu_seconds": 3.159,
+        "postgres_cores": 0.42,
+        "lines_per_second": 2834
+      },
+      "copy_staging": {
+        "seconds": 1.098,
+        "python_cpu_seconds": 0.2,
+        "python_cores": 0.18,
+        "postgres_cpu_seconds": 0.809,
+        "postgres_cores": 0.74,
+        "lines_per_second": 19505
+      },
+      "speedup": 6.9,
+      "checks": [
+        {
+          "check": "Both loaders store identical Bronze rows",
+          "expected": [
+            21417,
+            "61f2814ad6c7761ee3460ef2b98aad37"
+          ],
+          "observed": [
+            21417,
+            "61f2814ad6c7761ee3460ef2b98aad37"
+          ],
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 9.47
+    },
+    "continuous": {
+      "chunk_size": 5000,
+      "files": 191,
+      "lines": 142472,
+      "seconds": 21.371,
+      "python_cpu_seconds": 8.724,
+      "python_cores": 0.41,
+      "postgres_cpu_seconds": 11.487,
+      "postgres_cores": 0.54,
+      "events_per_second": 6667,
+      "bronze_load_lines_per_second": 18736,
+      "silver_rows_per_second": 10414,
+      "share_of_time_loading_bronze": 0.357,
+      "file_lines": {
+        "n": 191,
+        "min": 1.0,
+        "p50": 877.0,
+        "p95": 1392.0,
+        "p99": 1504.0,
+        "max": 5048.0,
+        "mean": 745.9267
+      },
+      "latency_arrival_to_silver_ms": {
+        "n": 142472,
+        "min": 10.5404,
+        "p50": 144.9971,
+        "p95": 228.9569,
+        "p99": 541.4499,
+        "max": 541.4499,
+        "mean": 157.9203
+      },
+      "latency_bronze_to_silver_ms": {
+        "n": 142472,
+        "min": 6.8493,
+        "p50": 93.37,
+        "p95": 145.8992,
+        "p99": 335.2891,
+        "max": 335.2891,
+        "mean": 100.7636
+      },
+      "batches": {
+        "batches": 192,
+        "batch_ms": {
+          "n": 192,
+          "min": 4.305,
+          "p50": 72.413,
+          "p95": 119.003,
+          "p99": 149.762,
+          "max": 318.597,
+          "mean": 65.1681
+        },
+        "processing_span_seconds": 21.078,
+        "rows_per_second_processing_span": 6759
+      },
+      "postgres": {
+        "xact_commit": 576,
+        "blks_read": 30,
+        "blks_hit": 4061694,
+        "tup_inserted": 430087,
+        "tup_updated": 751,
+        "tup_deleted": 0,
+        "temp_bytes": 0,
+        "wal_bytes": 273564272,
+        "cache_hit_ratio": 1.0
+      },
+      "silver_fingerprint": {
+        "events": 141814,
+        "md5": "10bd3200235fa4642eb4476f6886a1df"
+      },
+      "checks": [
+        {
+          "check": "Silver holds every unique valid event once",
+          "expected": 141814,
+          "observed": 141814,
+          "passed": true
+        },
+        {
+          "check": "Silver event ids equal the valid event ids (missing, unexpected)",
+          "expected": [
+            0,
+            0
+          ],
+          "observed": [
+            0,
+            0
+          ],
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded",
+          "expected": 643,
+          "observed": 643,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 22.11
+    },
+    "gold": {
+      "dbt_build": {
+        "seconds": 8.169,
+        "python_cpu_seconds": 0.015,
+        "python_cores": 0.0,
+        "postgres_cpu_seconds": 2.509,
+        "postgres_cores": 0.31,
+        "returncode": 0,
+        "summary": {
+          "pass": 102,
+          "warn": 0,
+          "error": 0,
+          "skip": 0
+        }
+      },
+      "gold_refresh_revenue_path": {
+        "seconds": 3.717,
+        "python_cpu_seconds": 0.004,
+        "python_cores": 0.0,
+        "postgres_cpu_seconds": 0.385,
+        "postgres_cores": 0.1,
+        "returncode": 0,
+        "summary": {
+          "pass": 6,
+          "warn": 0,
+          "error": 0,
+          "skip": 0
+        }
+      },
+      "gold_rows": 139728,
+      "gross_recharge_bdt": "1856670.00",
+      "checks": [
+        {
+          "check": "Gold daily revenue per date, channel and region equals truth to the poisha (cells differing)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Gold total recharge revenue equals truth (poisha)",
+          "expected": 185667000,
+          "observed": 185667000,
+          "passed": true
+        },
+        {
+          "check": "Gold total equals the sum of successful recharges in Silver",
+          "expected": "1856670.00",
+          "observed": "1856670.00",
+          "passed": true
+        },
+        {
+          "check": "Gold stock per warehouse and SKU equals truth (positions differing)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Settlement reconciliation flags exactly the injected mismatches",
+          "expected": [
+            "STL-BANK_CARD-20261001"
+          ],
+          "observed": [
+            "STL-BANK_CARD-20261001"
+          ],
+          "passed": true
+        },
+        {
+          "check": "dbt build has no errors, warnings or skips",
+          "expected": [
+            0,
+            0,
+            0
+          ],
+          "observed": [
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 12.1
+    },
+    "leak_hunter": {
+      "seconds": 2.528,
+      "python_cpu_seconds": 0.062,
+      "python_cores": 0.02,
+      "postgres_cpu_seconds": 2.391,
+      "postgres_cores": 0.95,
+      "cases_by_status": {
+        "PENDING": 5,
+        "SUSPICIOUS": 23,
+        "CONFIRMED_BY_RULE": 86
+      },
+      "rules": 10,
+      "scenarios": {
+        "TEL-01": {
+          "scenario": "MISSING_BILLING",
+          "positives": 46,
+          "confirmed_tp": 35,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.7609,
+          "missed": 0
+        },
+        "TEL-02": {
+          "scenario": "DUPLICATE_PAYMENT_CHARGE",
+          "positives": 28,
+          "confirmed_tp": 25,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.8929,
+          "missed": 0
+        },
+        "TEL-03": {
+          "scenario": "ACTIVATION_WITHOUT_CAPTURE",
+          "positives": 23,
+          "confirmed_tp": 16,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.6957,
+          "missed": 0
+        },
+        "TEL-04": {
+          "scenario": "SETTLEMENT_MISMATCH",
+          "positives": 1,
+          "confirmed_tp": 1,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 1.0,
+          "missed": 0
+        },
+        "MFG-01": {
+          "scenario": "SHIPMENT_WITHOUT_INVOICE",
+          "positives": 3,
+          "confirmed_tp": 2,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.6667,
+          "missed": 0
+        },
+        "MFG-02": {
+          "scenario": "DEALER_SETTLEMENT_MISMATCH",
+          "positives": 6,
+          "confirmed_tp": 4,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.6667,
+          "missed": 0
+        },
+        "MFG-03": {
+          "scenario": "DOUBLE_REFUND",
+          "positives": 1,
+          "confirmed_tp": 1,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 1.0,
+          "missed": 0
+        },
+        "MFG-04": {
+          "scenario": "UNAUTHORIZED_ADJUSTMENT",
+          "positives": 2,
+          "confirmed_tp": 2,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 1.0,
+          "missed": 0
+        },
+        "MFG-05": {
+          "scenario": "DEALER_NON_PAYMENT",
+          "positives": 4,
+          "confirmed_tp": 0,
+          "confirmed_fp": 0,
+          "precision_confirmed": null,
+          "recall_confirmed": 0.0,
+          "missed": 3
+        }
+      },
+      "hunt": {
+        "run_id": 1,
+        "as_of": {
+          "mfg": "2026-10-07T17:52:29.696000+00:00",
+          "telecom": "2026-10-07T17:59:54.249000+00:00"
+        },
+        "observed": 114,
+        "opened": 114,
+        "status_changes": 0,
+        "auto_cleared": 0,
+        "reopened": 0,
+        "per_rule": {
+          "TEL-01": {
+            "observed": 46,
+            "as_of": "2026-10-07T17:59:54.249000+00:00",
+            "CONFIRMED_BY_RULE": 35,
+            "SUSPICIOUS": 11
+          },
+          "TEL-02": {
+            "observed": 28,
+            "as_of": "2026-10-07T17:59:54.249000+00:00",
+            "CONFIRMED_BY_RULE": 25,
+            "SUSPICIOUS": 3
+          },
+          "TEL-03": {
+            "observed": 23,
+            "as_of": "2026-10-07T17:59:54.249000+00:00",
+            "SUSPICIOUS": 6,
+            "CONFIRMED_BY_RULE": 16,
+            "PENDING": 1
+          },
+          "TEL-04": {
+            "observed": 1,
+            "as_of": "2026-10-07T17:59:54.249000+00:00",
+            "CONFIRMED_BY_RULE": 1
+          },
+          "TEL-05": {
+            "observed": 0,
+            "as_of": "2026-10-07T17:59:54.249000+00:00"
+          },
+          "MFG-01": {
+            "observed": 4,
+            "as_of": "2026-10-07T17:52:29.696000+00:00",
+            "CONFIRMED_BY_RULE": 2,
+            "SUSPICIOUS": 1,
+            "PENDING": 1
+          },
+          "MFG-02": {
+            "observed": 6,
+            "as_of": "2026-10-07T17:52:29.696000+00:00",
+            "CONFIRMED_BY_RULE": 4,
+            "SUSPICIOUS": 2
+          },
+          "MFG-03": {
+            "observed": 1,
+            "as_of": "2026-10-07T17:52:29.696000+00:00",
+            "CONFIRMED_BY_RULE": 1
+          },
+          "MFG-04": {
+            "observed": 2,
+            "as_of": "2026-10-07T17:52:29.696000+00:00",
+            "CONFIRMED_BY_RULE": 2
+          },
+          "MFG-05": {
+            "observed": 3,
+            "as_of": "2026-10-07T17:52:29.696000+00:00",
+            "PENDING": 3
+          }
+        }
+      },
+      "checks": [
+        {
+          "check": "Leak Hunter evaluation passes (no false confirmation, benign timing never confirmed)",
+          "expected": true,
+          "observed": true,
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 2.63
+    },
+    "sql_serving": {
+      "repetitions": 20,
+      "warmup": 2,
+      "silver_rows": 141814,
+      "queries": [
+        {
+          "query": "Recharge revenue by day, channel and region (whole period)",
+          "baseline": "Silver jsonb, aggregated at query time",
+          "optimized": "Gold mart built by dbt",
+          "rows": 224,
+          "baseline_ms": {
+            "n": 20,
+            "min": 16.9963,
+            "p50": 19.1153,
+            "p95": 23.0493,
+            "p99": 23.1678,
+            "max": 23.1678,
+            "mean": 19.6576
+          },
+          "optimized_ms": {
+            "n": 20,
+            "min": 0.3746,
+            "p50": 0.5519,
+            "p95": 1.2907,
+            "p99": 1.6325,
+            "max": 1.6325,
+            "mean": 0.6677
+          },
+          "speedup_p50": 34.6,
+          "checks": [
+            {
+              "check": "Same result from both (Recharge revenue by day, channel and region (whole period))",
+              "expected": true,
+              "observed": true,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "query": "Usage by day, region and type (whole period)",
+          "baseline": "Silver jsonb, aggregated at query time",
+          "optimized": "Gold mart built by dbt",
+          "rows": 168,
+          "baseline_ms": {
+            "n": 20,
+            "min": 315.0869,
+            "p50": 376.1195,
+            "p95": 427.6542,
+            "p99": 428.8434,
+            "max": 428.8434,
+            "mean": 376.8872
+          },
+          "optimized_ms": {
+            "n": 20,
+            "min": 0.519,
+            "p50": 0.6843,
+            "p95": 1.5438,
+            "p99": 2.5066,
+            "max": 2.5066,
+            "mean": 0.8327
+          },
+          "speedup_p50": 549.6,
+          "checks": [
+            {
+              "check": "Same result from both (Usage by day, region and type (whole period))",
+              "expected": true,
+              "observed": true,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "query": "One day's recharge revenue (a dashboard tile)",
+          "baseline": "Silver jsonb through the (event_type, event_time) index",
+          "optimized": "Gold mart built by dbt",
+          "rows": 1,
+          "baseline_ms": {
+            "n": 20,
+            "min": 1.5877,
+            "p50": 2.1729,
+            "p95": 2.7908,
+            "p99": 3.1511,
+            "max": 3.1511,
+            "mean": 2.2473
+          },
+          "optimized_ms": {
+            "n": 20,
+            "min": 0.1264,
+            "p50": 0.2102,
+            "p95": 0.9675,
+            "p99": 1.3319,
+            "max": 1.3319,
+            "mean": 0.3937
+          },
+          "speedup_p50": 10.3,
+          "checks": [
+            {
+              "check": "Same result from both (One day's recharge revenue (a dashboard tile))",
+              "expected": true,
+              "observed": true,
+              "passed": true
+            }
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "check": "Same result from both (Recharge revenue by day, channel and region (whole period))",
+          "expected": true,
+          "observed": true,
+          "passed": true
+        },
+        {
+          "check": "Same result from both (Usage by day, region and type (whole period))",
+          "expected": true,
+          "observed": true,
+          "passed": true
+        },
+        {
+          "check": "Same result from both (One day's recharge revenue (a dashboard tile))",
+          "expected": true,
+          "observed": true,
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 8.92
+    },
+    "time_machine": {
+      "seconds": 16.754,
+      "python_cpu_seconds": 10.047,
+      "python_cores": 0.6,
+      "postgres_cpu_seconds": 8.523,
+      "postgres_cores": 0.51,
+      "window_hours": 72.0,
+      "records": 57745,
+      "records_per_second": 3447,
+      "changes": {
+        "NONE": 277,
+        "UNCHANGED": 57468
+      },
+      "checks": [
+        {
+          "check": "Replay of an undamaged window changes, inserts or removes nothing",
+          "expected": {},
+          "observed": {},
+          "passed": true
+        },
+        {
+          "check": "Replay fingerprint equals Silver",
+          "expected": "ec73ffb7f973c88b1badd38a13384488",
+          "observed": "ec73ffb7f973c88b1badd38a13384488",
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 16.85
+    },
+    "storage": {
+      "database_bytes": 322862103,
+      "table_bytes": {
+        "bronze.raw_events": 144859136,
+        "silver.events": 81649664,
+        "silver.quarantine": 49152,
+        "ops.duplicate_events": 106496,
+        "ops.processing_runs": 73728
+      },
+      "gold_bytes": 23339008,
+      "arrival_file_bytes": 66824452,
+      "bronze_bytes_per_line": 1017,
+      "silver_bytes_per_event": 576,
+      "database_to_file_ratio": 4.83,
+      "experiment_seconds": 0.02
+    },
+    "drop_continuous": {
+      "dropped": "signalflow_bench",
+      "experiment_seconds": 0.4
+    },
+    "bronze_template": {
+      "seconds": 7.103,
+      "python_cpu_seconds": 1.396,
+      "python_cores": 0.2,
+      "postgres_cpu_seconds": 5.849,
+      "postgres_cores": 0.82,
+      "lines": 142472,
+      "lines_per_second": 20058,
+      "database_bytes": 153895439,
+      "clone_seconds": 0.263,
+      "experiment_seconds": 8.08
+    },
+    "backfill": {
+      "runs": [
+        {
+          "validator": "reference",
+          "chunk_size": 5000,
+          "rows": 142472,
+          "returncode": 0,
+          "seconds": 30.226,
+          "worker_cpu_seconds": 25.362,
+          "worker_cores": 0.84,
+          "worker_peak_rss_mb": 64.8,
+          "postgres_cpu_seconds": 5.268,
+          "postgres_cores": 0.17,
+          "rows_per_second": 4714,
+          "batches": 29,
+          "batch_ms": {
+            "n": 29,
+            "min": 482.038,
+            "p50": 1053.066,
+            "p95": 1149.211,
+            "p99": 1151.836,
+            "max": 1151.836,
+            "mean": 1015.9809
+          },
+          "processing_span_seconds": 29.845,
+          "rows_per_second_processing_span": 4774,
+          "arrival_classes": {
+            "LATE_BEYOND_WATERMARK": 249,
+            "ON_TIME": 140917,
+            "LATE_WITHIN_WATERMARK": 648
+          },
+          "postgres": {
+            "xact_commit": 37,
+            "blks_read": 21501,
+            "blks_hit": 1734452,
+            "tup_inserted": 142761,
+            "tup_updated": 104,
+            "tup_deleted": 0,
+            "temp_bytes": 0,
+            "wal_bytes": 205196192,
+            "cache_hit_ratio": 0.9878
+          },
+          "checks": [
+            {
+              "check": "Worker exited cleanly (reference validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Backlog drained (reference validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Silver fingerprint equals the continuous run (reference validator, chunk 5000)",
+              "expected": {
+                "events": 141814,
+                "md5": "10bd3200235fa4642eb4476f6886a1df"
+              },
+              "observed": {
+                "events": 141814,
+                "md5": "10bd3200235fa4642eb4476f6886a1df"
+              },
+              "passed": true
+            },
+            {
+              "check": "Technical duplicates logged, not loaded (reference validator, chunk 5000)",
+              "expected": 643,
+              "observed": 643,
+              "passed": true
+            },
+            {
+              "check": "Quarantine by reason (reference validator, chunk 5000)",
+              "expected": {
+                "CONTRACT_VIOLATION": 8,
+                "ENVELOPE_VIOLATION": 2,
+                "EVENT_ID_CONFLICT": 2,
+                "UNPARSEABLE": 1,
+                "UNSUPPORTED_SCHEMA_VERSION": 2
+              },
+              "observed": {
+                "EVENT_ID_CONFLICT": 2,
+                "ENVELOPE_VIOLATION": 2,
+                "CONTRACT_VIOLATION": 8,
+                "UNSUPPORTED_SCHEMA_VERSION": 2,
+                "UNPARSEABLE": 1
+              },
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps (reference validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "validator": "compiled",
+          "chunk_size": 500,
+          "rows": 142472,
+          "returncode": 0,
+          "seconds": 15.26,
+          "worker_cpu_seconds": 8.037,
+          "worker_cores": 0.53,
+          "worker_peak_rss_mb": 45.6,
+          "postgres_cpu_seconds": 6.567,
+          "postgres_cores": 0.43,
+          "rows_per_second": 9336,
+          "batches": 285,
+          "batch_ms": {
+            "n": 285,
+            "min": 36.241,
+            "p50": 48.065,
+            "p95": 61.36,
+            "p99": 70.648,
+            "max": 76.508,
+            "mean": 49.0599
+          },
+          "processing_span_seconds": 14.803,
+          "rows_per_second_processing_span": 9624,
+          "arrival_classes": {
+            "LATE_BEYOND_WATERMARK": 4770,
+            "LATE_WITHIN_WATERMARK": 1365,
+            "ON_TIME": 135679
+          },
+          "postgres": {
+            "xact_commit": 302,
+            "blks_read": 14455,
+            "blks_hit": 1865914,
+            "tup_inserted": 148615,
+            "tup_updated": 3467,
+            "tup_deleted": 0,
+            "temp_bytes": 0,
+            "wal_bytes": 207350464,
+            "cache_hit_ratio": 0.9923
+          },
+          "checks": [
+            {
+              "check": "Worker exited cleanly (compiled validator, chunk 500)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Backlog drained (compiled validator, chunk 500)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 500)",
+              "expected": {
+                "events": 141814,
+                "md5": "10bd3200235fa4642eb4476f6886a1df"
+              },
+              "observed": {
+                "events": 141814,
+                "md5": "10bd3200235fa4642eb4476f6886a1df"
+              },
+              "passed": true
+            },
+            {
+              "check": "Technical duplicates logged, not loaded (compiled validator, chunk 500)",
+              "expected": 643,
+              "observed": 643,
+              "passed": true
+            },
+            {
+              "check": "Quarantine by reason (compiled validator, chunk 500)",
+              "expected": {
+                "CONTRACT_VIOLATION": 8,
+                "ENVELOPE_VIOLATION": 2,
+                "EVENT_ID_CONFLICT": 2,
+                "UNPARSEABLE": 1,
+                "UNSUPPORTED_SCHEMA_VERSION": 2
+              },
+              "observed": {
+                "EVENT_ID_CONFLICT": 2,
+                "ENVELOPE_VIOLATION": 2,
+                "CONTRACT_VIOLATION": 8,
+                "UNSUPPORTED_SCHEMA_VERSION": 2,
+                "UNPARSEABLE": 1
+              },
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 500)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "validator": "compiled",
+          "chunk_size": 2000,
+          "rows": 142472,
+          "returncode": 0,
+          "seconds": 13.163,
+          "worker_cpu_seconds": 7.391,
+          "worker_cores": 0.56,
+          "worker_peak_rss_mb": 52.2,
+          "postgres_cpu_seconds": 5.858,
+          "postgres_cores": 0.45,
+          "rows_per_second": 10824,
+          "batches": 72,
+          "batch_ms": {
+            "n": 72,
+            "min": 39.996,
+            "p50": 160.387,
+            "p95": 210.699,
+            "p99": 347.811,
+            "max": 347.811,
+            "mean": 166.9944
+          },
+          "processing_span_seconds": 12.757,
+          "rows_per_second_processing_span": 11168,
+          "arrival_classes": {
+            "LATE_BEYOND_WATERMARK": 3266,
+            "LATE_WITHIN_WATERMARK": 1172,
+            "ON_TIME": 137376
+          },
+          "postgres": {
+            "xact_commit": 91,
+            "blks_read": 14458,
+            "blks_hit": 1820750,
+            "tup_inserted": 146862,
+            "tup_updated": 809,
+            "tup_deleted": 0,
+            "temp_bytes": 0,
+            "wal_bytes": 206507480,
+            "cache_hit_ratio": 0.9921
+          },
+          "checks": [
+            {
+              "check": "Worker exited cleanly (compiled validator, chunk 2000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Backlog drained (compiled validator, chunk 2000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 2000)",
+              "expected": {
+                "events": 141814,
+                "md5": "10bd3200235fa4642eb4476f6886a1df"
+              },
+              "observed": {
+                "events": 141814,
+                "md5": "10bd3200235fa4642eb4476f6886a1df"
+              },
+              "passed": true
+            },
+            {
+              "check": "Technical duplicates logged, not loaded (compiled validator, chunk 2000)",
+              "expected": 643,
+              "observed": 643,
+              "passed": true
+            },
+            {
+              "check": "Quarantine by reason (compiled validator, chunk 2000)",
+              "expected": {
+                "CONTRACT_VIOLATION": 8,
+                "ENVELOPE_VIOLATION": 2,
+                "EVENT_ID_CONFLICT": 2,
+                "UNPARSEABLE": 1,
+                "UNSUPPORTED_SCHEMA_VERSION": 2
+              },
+              "observed": {
+                "EVENT_ID_CONFLICT": 2,
+                "ENVELOPE_VIOLATION": 2,
+                "CONTRACT_VIOLATION": 8,
+                "UNSUPPORTED_SCHEMA_VERSION": 2,
+                "UNPARSEABLE": 1
+              },
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 2000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "validator": "compiled",
+          "chunk_size": 5000,
+          "rows": 142472,
+          "returncode": 0,
+          "seconds": 11.847,
+          "worker_cpu_seconds": 7.207,
+          "worker_cores": 0.61,
+          "worker_peak_rss_mb": 65.2,
+          "postgres_cpu_seconds": 5.48,
+          "postgres_cores": 0.46,
+          "rows_per_second": 12026,
+          "batches": 29,
+          "batch_ms": {
+            "n": 29,
+            "min": 192.233,
+            "p50": 387.598,
+            "p95": 451.244,
+            "p99": 457.074,
+            "max": 457.074,
+            "mean": 381.2143
+          },
+          "processing_span_seconds": 11.421,
+          "rows_per_second_processing_span": 12475,
+          "arrival_classes": {
+            "LATE_BEYOND_WATERMARK": 249,
+            "LATE_WITHIN_WATERMARK": 648,
+            "ON_TIME": 140917
+          },
+          "postgres": {
+            "xact_commit": 42,
+            "blks_read": 14451,
+            "blks_hit": 1751087,
+            "tup_inserted": 142787,
+            "tup_updated": 104,
+            "tup_deleted": 0,
+            "temp_bytes": 0,
+            "wal_bytes": 205905920,
+            "cache_hit_ratio": 0.9918
+          },
+          "checks": [
+            {
+              "check": "Worker exited cleanly (compiled validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Backlog drained (compiled validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 5000)",
+              "expected": {
+                "events": 141814,
+                "md5": "10bd3200235fa4642eb4476f6886a1df"
+              },
+              "observed": {
+                "events": 141814,
+                "md5": "10bd3200235fa4642eb4476f6886a1df"
+              },
+              "passed": true
+            },
+            {
+              "check": "Technical duplicates logged, not loaded (compiled validator, chunk 5000)",
+              "expected": 643,
+              "observed": 643,
+              "passed": true
+            },
+            {
+              "check": "Quarantine by reason (compiled validator, chunk 5000)",
+              "expected": {
+                "CONTRACT_VIOLATION": 8,
+                "ENVELOPE_VIOLATION": 2,
+                "EVENT_ID_CONFLICT": 2,
+                "UNPARSEABLE": 1,
+                "UNSUPPORTED_SCHEMA_VERSION": 2
+              },
+              "observed": {
+                "EVENT_ID_CONFLICT": 2,
+                "ENVELOPE_VIOLATION": 2,
+                "CONTRACT_VIOLATION": 8,
+                "UNSUPPORTED_SCHEMA_VERSION": 2,
+                "UNPARSEABLE": 1
+              },
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "validator": "compiled",
+          "chunk_size": 20000,
+          "rows": 142472,
+          "returncode": 0,
+          "seconds": 11.551,
+          "worker_cpu_seconds": 7.099,
+          "worker_cores": 0.61,
+          "worker_peak_rss_mb": 130.6,
+          "postgres_cpu_seconds": 5.211,
+          "postgres_cores": 0.45,
+          "rows_per_second": 12334,
+          "batches": 8,
+          "batch_ms": {
+            "n": 8,
+            "min": 222.971,
+            "p50": 1482.64,
+            "p95": 1634.78,
+            "p99": 1634.78,
+            "max": 1634.78,
+            "mean": 1351.7871
+          },
+          "processing_span_seconds": 11.054,
+          "rows_per_second_processing_span": 12889,
+          "arrival_classes": {
+            "LATE_BEYOND_WATERMARK": 162,
+            "LATE_WITHIN_WATERMARK": 292,
+            "ON_TIME": 141360
+          },
+          "postgres": {
+            "xact_commit": 21,
+            "blks_read": 14862,
+            "blks_hit": 1577682,
+            "tup_inserted": 142679,
+            "tup_updated": 24,
+            "tup_deleted": 0,
+            "temp_bytes": 0,
+            "wal_bytes": 205313952,
+            "cache_hit_ratio": 0.9907
+          },
+          "checks": [
+            {
+              "check": "Worker exited cleanly (compiled validator, chunk 20000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Backlog drained (compiled validator, chunk 20000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 20000)",
+              "expected": {
+                "events": 141814,
+                "md5": "10bd3200235fa4642eb4476f6886a1df"
+              },
+              "observed": {
+                "events": 141814,
+                "md5": "10bd3200235fa4642eb4476f6886a1df"
+              },
+              "passed": true
+            },
+            {
+              "check": "Technical duplicates logged, not loaded (compiled validator, chunk 20000)",
+              "expected": 643,
+              "observed": 643,
+              "passed": true
+            },
+            {
+              "check": "Quarantine by reason (compiled validator, chunk 20000)",
+              "expected": {
+                "CONTRACT_VIOLATION": 8,
+                "ENVELOPE_VIOLATION": 2,
+                "EVENT_ID_CONFLICT": 2,
+                "UNPARSEABLE": 1,
+                "UNSUPPORTED_SCHEMA_VERSION": 2
+              },
+              "observed": {
+                "EVENT_ID_CONFLICT": 2,
+                "ENVELOPE_VIOLATION": 2,
+                "CONTRACT_VIOLATION": 8,
+                "UNSUPPORTED_SCHEMA_VERSION": 2,
+                "UNPARSEABLE": 1
+              },
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 20000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        }
+      ],
+      "baseline": {
+        "validator": "reference",
+        "chunk_size": 5000
+      },
+      "best_chunk": 20000,
+      "speedup_validator": 2.55,
+      "speedup_best_vs_baseline": 2.62,
+      "speedup_best_vs_smallest_chunk": 1.32,
+      "capacity_rows_per_second": 12475,
+      "checks": [
+        {
+          "check": "Worker exited cleanly (reference validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained (reference validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (reference validator, chunk 5000)",
+          "expected": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "observed": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded (reference validator, chunk 5000)",
+          "expected": 643,
+          "observed": 643,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason (reference validator, chunk 5000)",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps (reference validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Worker exited cleanly (compiled validator, chunk 500)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained (compiled validator, chunk 500)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 500)",
+          "expected": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "observed": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded (compiled validator, chunk 500)",
+          "expected": 643,
+          "observed": 643,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason (compiled validator, chunk 500)",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 500)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Worker exited cleanly (compiled validator, chunk 2000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained (compiled validator, chunk 2000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 2000)",
+          "expected": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "observed": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded (compiled validator, chunk 2000)",
+          "expected": 643,
+          "observed": 643,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason (compiled validator, chunk 2000)",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 2000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Worker exited cleanly (compiled validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained (compiled validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 5000)",
+          "expected": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "observed": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded (compiled validator, chunk 5000)",
+          "expected": 643,
+          "observed": 643,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason (compiled validator, chunk 5000)",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Worker exited cleanly (compiled validator, chunk 20000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained (compiled validator, chunk 20000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 20000)",
+          "expected": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "observed": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded (compiled validator, chunk 20000)",
+          "expected": 643,
+          "observed": 643,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason (compiled validator, chunk 20000)",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 20000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 86.92
+    },
+    "recovery": {
+      "chunk_size": 5000,
+      "bronze_rows": 142472,
+      "killed_after_seconds": 4.925,
+      "checkpoint_at_kill": 60000,
+      "share_done_at_kill": 0.421,
+      "backlog_at_kill": 82472,
+      "restart_to_drained_seconds": 6.726,
+      "rows_per_second_after_restart": 12262,
+      "worker": {
+        "returncode": 0,
+        "seconds": 6.726,
+        "worker_cpu_seconds": 4.071,
+        "worker_cores": 0.61,
+        "worker_peak_rss_mb": 64.2,
+        "postgres_cpu_seconds": 2.919,
+        "postgres_cores": 0.43
+      },
+      "checks": [
+        {
+          "check": "Killed while work remained",
+          "expected": true,
+          "observed": true,
+          "passed": true
+        },
+        {
+          "check": "No Silver, quarantine or duplicate row past the checkpoint after the kill",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Restarted worker exited cleanly",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained after restart",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged once",
+          "expected": 643,
+          "observed": 643,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (after kill and restart)",
+          "expected": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "observed": {
+            "events": 141814,
+            "md5": "10bd3200235fa4642eb4476f6886a1df"
+          },
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 12.43
+    },
+    "profile": {
+      "runs": [
+        {
+          "validator": "reference",
+          "lines": 50338,
+          "seconds": 24.44,
+          "python_cpu_seconds": 22.437,
+          "python_cores": 0.92,
+          "postgres_cpu_seconds": 2.432,
+          "postgres_cores": 0.1,
+          "profiled_seconds": 24.283,
+          "by_category": [
+            {
+              "category": "contract validation (jsonschema)",
+              "seconds": 15.478,
+              "share": 0.637
+            },
+            {
+              "category": "other (interpreter, stdlib)",
+              "seconds": 4.081,
+              "share": 0.168
+            },
+            {
+              "category": "Postgres driver and waiting on the server",
+              "seconds": 2.055,
+              "share": 0.085
+            },
+            {
+              "category": "SignalFlow processor code",
+              "seconds": 1.449,
+              "share": 0.06
+            },
+            {
+              "category": "JSON parse and serialise",
+              "seconds": 1.094,
+              "share": 0.045
+            },
+            {
+              "category": "timestamps",
+              "seconds": 0.075,
+              "share": 0.003
+            },
+            {
+              "category": "hashing",
+              "seconds": 0.051,
+              "share": 0.002
+            }
+          ],
+          "top_functions": [
+            {
+              "function": "validators.py:396:descend",
+              "calls": 1024439,
+              "seconds": 2.785,
+              "share": 0.115
+            },
+            {
+              "function": "validators.py:339:evolve",
+              "calls": 1136615,
+              "seconds": 2.075,
+              "share": 0.085
+            },
+            {
+              "function": "connection.py:445:wait",
+              "calls": 963,
+              "seconds": 1.574,
+              "share": 0.065
+            },
+            {
+              "function": "_types.py:94:is_type",
+              "calls": 1935935,
+              "seconds": 1.227,
+              "share": 0.051
+            },
+            {
+              "function": "validators.py:282:__attrs_post_init__",
+              "calls": 1136615,
+              "seconds": 1.055,
+              "share": 0.043
+            },
+            {
+              "function": "_keywords.py:290:properties",
+              "calls": 324776,
+              "seconds": 0.737,
+              "share": 0.03
+            },
+            {
+              "function": "~:0:<built-in method builtins.isinstance>",
+              "calls": 5482474,
+              "seconds": 0.728,
+              "share": 0.03
+            },
+            {
+              "function": "~:0:<built-in method builtins.getattr>",
+              "calls": 5246691,
+              "seconds": 0.643,
+              "share": 0.026
+            },
+            {
+              "function": "_keywords.py:282:type",
+              "calls": 823862,
+              "seconds": 0.643,
+              "share": 0.026
+            },
+            {
+              "function": "validators.py:452:is_type",
+              "calls": 1935935,
+              "seconds": 0.605,
+              "share": 0.025
+            },
+            {
+              "function": "_core.py:165:create_resource",
+              "calls": 1024436,
+              "seconds": 0.571,
+              "share": 0.024
+            },
+            {
+              "function": "~:0:<method 'get' of 'dict' objects>",
+              "calls": 3211378,
+              "seconds": 0.524,
+              "share": 0.022
+            }
+          ]
+        },
+        {
+          "validator": "compiled",
+          "lines": 50338,
+          "seconds": 6.231,
+          "python_cpu_seconds": 4.645,
+          "python_cores": 0.75,
+          "postgres_cpu_seconds": 2.367,
+          "postgres_cores": 0.38,
+          "profiled_seconds": 6.089,
+          "by_category": [
+            {
+              "category": "Postgres driver and waiting on the server",
+              "seconds": 1.939,
+              "share": 0.318
+            },
+            {
+              "category": "SignalFlow processor code",
+              "seconds": 1.076,
+              "share": 0.177
+            },
+            {
+              "category": "contract validation (compiled)",
+              "seconds": 1.007,
+              "share": 0.165
+            },
+            {
+              "category": "JSON parse and serialise",
+              "seconds": 0.954,
+              "share": 0.157
+            },
+            {
+              "category": "other (interpreter, stdlib)",
+              "seconds": 0.935,
+              "share": 0.154
+            },
+            {
+              "category": "timestamps",
+              "seconds": 0.073,
+              "share": 0.012
+            },
+            {
+              "category": "contract validation (jsonschema)",
+              "seconds": 0.053,
+              "share": 0.009
+            },
+            {
+              "category": "hashing",
+              "seconds": 0.051,
+              "share": 0.008
+            }
+          ],
+          "top_functions": [
+            {
+              "function": "connection.py:445:wait",
+              "calls": 963,
+              "seconds": 1.426,
+              "share": 0.234
+            },
+            {
+              "function": "<string>:3:validate_signalflow___contracts_telecom_usage_record_1_0",
+              "calls": 34809,
+              "seconds": 0.546,
+              "share": 0.09
+            },
+            {
+              "function": "encoder.py:205:iterencode",
+              "calls": 100448,
+              "seconds": 0.411,
+              "share": 0.067
+            },
+            {
+              "function": "<string>:3:validate_signalflow___contracts_envelope_1_0",
+              "calls": 50337,
+              "seconds": 0.34,
+              "share": 0.056
+            },
+            {
+              "function": "_copy_base.py:224:write_row",
+              "calls": 50109,
+              "seconds": 0.273,
+              "share": 0.045
+            },
+            {
+              "function": "~:0:<method 'search' of 're.Pattern' objects>",
+              "calls": 444372,
+              "seconds": 0.22,
+              "share": 0.036
+            },
+            {
+              "function": "~:0:<built-in method builtins.isinstance>",
+              "calls": 2072801,
+              "seconds": 0.206,
+              "share": 0.034
+            },
+            {
+              "function": "contracts.py:137:validate",
+              "calls": 50337,
+              "seconds": 0.198,
+              "share": 0.032
+            },
+            {
+              "function": "decoder.py:343:raw_decode",
+              "calls": 50337,
+              "seconds": 0.195,
+              "share": 0.032
+            },
+            {
+              "function": "silver.py:138:apply_validated",
+              "calls": 11,
+              "seconds": 0.183,
+              "share": 0.03
+            },
+            {
+              "function": "contracts.py:64:parse_utc",
+              "calls": 251219,
+              "seconds": 0.154,
+              "share": 0.025
+            },
+            {
+              "function": "~:0:<method 'remove' of 'set' objects>",
+              "calls": 873745,
+              "seconds": 0.111,
+              "share": 0.018
+            }
+          ]
+        }
+      ],
+      "note": "cProfile adds overhead to every Python call, so Python-heavy categories are overstated.",
+      "experiment_seconds": 36.62
+    },
+    "load": {
+      "capacity_rows_per_second": 12475,
+      "consumer_idle_poll_ms": 50,
+      "runs": [
+        {
+          "share_of_capacity": 0.5,
+          "target_rows_per_second": 6238,
+          "files": 191,
+          "lines": 142472,
+          "achieved_arrival_rows_per_second": 6273,
+          "seconds": 22.97,
+          "latency_bronze_to_silver_ms": {
+            "n": 142472,
+            "min": 4.386,
+            "p50": 115.881,
+            "p95": 166.902,
+            "p99": 305.31,
+            "max": 329.213,
+            "mean": 118.822
+          },
+          "drain_after_last_arrival_seconds": 0.011,
+          "backlog_rows": {
+            "n": 91,
+            "min": 0.0,
+            "p50": 906.0,
+            "p95": 1392.0,
+            "p99": 5048.0,
+            "max": 5048.0,
+            "mean": 720.4505
+          },
+          "backlog_first_quarter_mean": 1022,
+          "backlog_last_quarter_mean": 675,
+          "backlog_series": [
+            [
+              0.0,
+              0
+            ],
+            [
+              0.26,
+              5048
+            ],
+            [
+              0.51,
+              5048
+            ],
+            [
+              0.76,
+              0
+            ],
+            [
+              1.01,
+              171
+            ],
+            [
+              1.27,
+              0
+            ],
+            [
+              1.52,
+              1012
+            ],
+            [
+              1.77,
+              1035
+            ],
+            [
+              2.02,
+              0
+            ],
+            [
+              2.28,
+              931
+            ],
+            [
+              2.53,
+              1041
+            ],
+            [
+              2.78,
+              0
+            ],
+            [
+              3.03,
+              1392
+            ],
+            [
+              3.29,
+              1445
+            ],
+            [
+              3.54,
+              1348
+            ],
+            [
+              3.82,
+              1066
+            ],
+            [
+              4.07,
+              309
+            ],
+            [
+              4.32,
+              674
+            ],
+            [
+              4.57,
+              944
+            ],
+            [
+              4.82,
+              0
+            ],
+            [
+              5.08,
+              1009
+            ],
+            [
+              5.33,
+              0
+            ],
+            [
+              5.58,
+              0
+            ],
+            [
+              5.84,
+              1063
+            ],
+            [
+              6.1,
+              0
+            ],
+            [
+              6.35,
+              0
+            ],
+            [
+              6.6,
+              1305
+            ],
+            [
+              6.86,
+              1039
+            ],
+            [
+              7.12,
+              0
+            ],
+            [
+              7.38,
+              452
+            ],
+            [
+              7.63,
+              0
+            ],
+            [
+              7.89,
+              1021
+            ],
+            [
+              8.15,
+              908
+            ],
+            [
+              8.42,
+              892
+            ],
+            [
+              8.67,
+              0
+            ],
+            [
+              8.92,
+              1106
+            ],
+            [
+              9.19,
+              0
+            ],
+            [
+              9.44,
+              0
+            ],
+            [
+              9.7,
+              1293
+            ],
+            [
+              9.95,
+              1125
+            ],
+            [
+              10.21,
+              0
+            ],
+            [
+              10.49,
+              456
+            ],
+            [
+              10.74,
+              0
+            ],
+            [
+              10.99,
+              1045
+            ],
+            [
+              11.24,
+              949
+            ],
+            [
+              11.5,
+              864
+            ],
+            [
+              11.75,
+              960
+            ],
+            [
+              12.0,
+              0
+            ],
+            [
+              12.26,
+              1211
+            ],
+            [
+              12.51,
+              1389
+            ],
+            [
+              12.76,
+              0
+            ],
+            [
+              13.01,
+              0
+            ],
+            [
+              13.26,
+              726
+            ],
+            [
+              13.51,
+              173
+            ],
+            [
+              13.76,
+              0
+            ],
+            [
+              14.02,
+              990
+            ],
+            [
+              14.27,
+              1104
+            ],
+            [
+              14.52,
+              1001
+            ],
+            [
+              14.78,
+              912
+            ],
+            [
+              15.03,
+              999
+            ],
+            [
+              15.28,
+              1055
+            ],
+            [
+              15.53,
+              0
+            ],
+            [
+              15.78,
+              0
+            ],
+            [
+              16.04,
+              1334
+            ],
+            [
+              16.3,
+              1099
+            ],
+            [
+              16.55,
+              293
+            ],
+            [
+              16.8,
+              421
+            ],
+            [
+              17.06,
+              0
+            ],
+            [
+              17.31,
+              1055
+            ],
+            [
+              17.56,
+              0
+            ],
+            [
+              17.82,
+              911
+            ],
+            [
+              18.07,
+              906
+            ],
+            [
+              18.32,
+              0
+            ],
+            [
+              18.57,
+              1234
+            ],
+            [
+              18.83,
+              1389
+            ],
+            [
+              19.09,
+              0
+            ],
+            [
+              19.35,
+              0
+            ],
+            [
+              19.6,
+              675
+            ],
+            [
+              19.85,
+              0
+            ],
+            [
+              20.1,
+              686
+            ],
+            [
+              20.36,
+              982
+            ],
+            [
+              20.62,
+              1073
+            ],
+            [
+              20.87,
+              0
+            ],
+            [
+              21.13,
+              927
+            ],
+            [
+              21.39,
+              1045
+            ],
+            [
+              21.64,
+              1076
+            ],
+            [
+              21.9,
+              0
+            ],
+            [
+              22.15,
+              1504
+            ],
+            [
+              22.4,
+              1338
+            ],
+            [
+              22.66,
+              1100
+            ],
+            [
+              22.91,
+              2
+            ]
+          ],
+          "gold_freshness_seconds": 5.32,
+          "checks": [
+            {
+              "check": "Every Bronze row processed exactly once",
+              "expected": 142472,
+              "observed": 142472,
+              "passed": true
+            },
+            {
+              "check": "Bronze ids contiguous (latency attribution exact)",
+              "expected": 142472,
+              "observed": 142472,
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "share_of_capacity": 0.9,
+          "target_rows_per_second": 11228,
+          "files": 191,
+          "lines": 142472,
+          "achieved_arrival_rows_per_second": 11273,
+          "seconds": 12.88,
+          "latency_bronze_to_silver_ms": {
+            "n": 142472,
+            "min": 4.049,
+            "p50": 160.647,
+            "p95": 339.994,
+            "p99": 350.325,
+            "max": 454.543,
+            "mean": 172.638
+          },
+          "drain_after_last_arrival_seconds": 0.016,
+          "backlog_rows": {
+            "n": 50,
+            "min": 0.0,
+            "p50": 1980.0,
+            "p95": 4803.0,
+            "p99": 6043.0,
+            "max": 6043.0,
+            "mean": 2061.16
+          },
+          "backlog_first_quarter_mean": 2271,
+          "backlog_last_quarter_mean": 1662,
+          "backlog_series": [
+            [
+              0.0,
+              0
+            ],
+            [
+              0.26,
+              5048
+            ],
+            [
+              0.53,
+              6043
+            ],
+            [
+              0.79,
+              1479
+            ],
+            [
+              1.05,
+              1990
+            ],
+            [
+              1.3,
+              1903
+            ],
+            [
+              1.56,
+              1980
+            ],
+            [
+              1.81,
+              1392
+            ],
+            [
+              2.08,
+              2414
+            ],
+            [
+              2.35,
+              1196
+            ],
+            [
+              2.61,
+              1738
+            ],
+            [
+              2.87,
+              2070
+            ],
+            [
+              3.13,
+              1771
+            ],
+            [
+              3.38,
+              1174
+            ],
+            [
+              3.64,
+              2799
+            ],
+            [
+              3.9,
+              2344
+            ],
+            [
+              4.16,
+              949
+            ],
+            [
+              4.42,
+              1980
+            ],
+            [
+              4.67,
+              1769
+            ],
+            [
+              4.93,
+              1001
+            ],
+            [
+              5.19,
+              2511
+            ],
+            [
+              5.45,
+              2720
+            ],
+            [
+              5.7,
+              2318
+            ],
+            [
+              5.95,
+              2378
+            ],
+            [
+              6.21,
+              2121
+            ],
+            [
+              6.46,
+              1791
+            ],
+            [
+              6.71,
+              1114
+            ],
+            [
+              6.97,
+              1389
+            ],
+            [
+              7.23,
+              2767
+            ],
+            [
+              7.48,
+              2593
+            ],
+            [
+              7.75,
+              2225
+            ],
+            [
+              8.01,
+              2163
+            ],
+            [
+              8.27,
+              4803
+            ],
+            [
+              8.52,
+              2054
+            ],
+            [
+              8.79,
+              2658
+            ],
+            [
+              9.04,
+              1334
+            ],
+            [
+              9.3,
+              2940
+            ],
+            [
+              9.55,
+              2201
+            ],
+            [
+              9.8,
+              2186
+            ],
+            [
+              10.05,
+              2894
+            ],
+            [
+              10.31,
+              1168
+            ],
+            [
+              10.57,
+              2877
+            ],
+            [
+              10.82,
+              1304
+            ],
+            [
+              11.08,
+              891
+            ],
+            [
+              11.33,
+              982
+            ],
+            [
+              11.59,
+              1073
+            ],
+            [
+              11.85,
+              1811
+            ],
+            [
+              12.1,
+              2278
+            ],
+            [
+              12.36,
+              1374
+            ],
+            [
+              12.61,
+              1100
+            ]
+          ],
+          "gold_freshness_seconds": null,
+          "checks": [
+            {
+              "check": "Every Bronze row processed exactly once",
+              "expected": 142472,
+              "observed": 142472,
+              "passed": true
+            },
+            {
+              "check": "Bronze ids contiguous (latency attribution exact)",
+              "expected": 142472,
+              "observed": 142472,
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "check": "Every Bronze row processed exactly once",
+          "expected": 142472,
+          "observed": 142472,
+          "passed": true
+        },
+        {
+          "check": "Bronze ids contiguous (latency attribution exact)",
+          "expected": 142472,
+          "observed": 142472,
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Every Bronze row processed exactly once",
+          "expected": 142472,
+          "observed": 142472,
+          "passed": true
+        },
+        {
+          "check": "Bronze ids contiguous (latency attribution exact)",
+          "expected": 142472,
+          "observed": 142472,
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 42.09
+    }
+  },
+  "headline": {
+    "lines": 142472,
+    "continuous_events_per_second": 6667,
+    "continuous_latency_p95_ms": 228.9569,
+    "backfill_best_rows_per_second": 12334,
+    "backfill_best_chunk": 20000,
+    "backfill_speedup_vs_baseline": 2.62,
+    "validator_speedup": 2.55,
+    "load_share": 0.5,
+    "load_latency_ms": {
+      "p50": 115.881,
+      "p95": 166.902,
+      "p99": 305.31
+    },
+    "gold_freshness_seconds": 5.32,
+    "recovery_restart_to_drained_seconds": 6.726,
+    "dbt_build_seconds": 8.169,
+    "sql_speedups_p50": [
+      34.6,
+      549.6,
+      10.3
+    ],
+    "ingest_copy_speedup": 6.9,
+    "checks_passed": 61,
+    "checks_total": 61
+  },
+  "phase": null,
+  "bench_process_max_rss_mb": 692.2
+}

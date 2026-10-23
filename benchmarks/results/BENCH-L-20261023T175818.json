@@ -1,0 +1,3905 @@
+{
+  "run_id": "BENCH-L-20261023T175818",
+  "workload": "L",
+  "status": "COMPLETED",
+  "error": null,
+  "config": {
+    "workload": {
+      "key": "L",
+      "days": 14,
+      "subscribers": 18000,
+      "dealers": 400,
+      "seed": 11,
+      "dataset_key": "seed11-14d-18000s-400d"
+    },
+    "generator": {
+      "seed": 11,
+      "start_date": "2026-10-01",
+      "days": 14,
+      "subscribers": 18000,
+      "recharge_rate": 1.0,
+      "package_purchase_prob": 0.12,
+      "usage_scale": 1.0,
+      "dealers": 400,
+      "warehouses": 4,
+      "order_prob": 0.35,
+      "return_prob": 0.05,
+      "disruptions": [
+        {
+          "factory_id": "FAC-01",
+          "day_index": 1,
+          "reason": "POWER_OUTAGE",
+          "hours": 18,
+          "severity": "HIGH"
+        }
+      ],
+      "late_within_prob": 0.01,
+      "late_beyond_prob": 0.002,
+      "duplicate_prob": 0.005,
+      "schema_break_count": 12,
+      "event_id_conflict_count": 2,
+      "unparseable_line_count": 1,
+      "v11_share": 0.3,
+      "missing_billing_prob": 0.004,
+      "duplicate_payment_prob": 0.002,
+      "activation_without_capture_prob": 0.006,
+      "settlement_mismatch_count": 1,
+      "shipment_without_invoice_prob": 0.01,
+      "dealer_short_payment_prob": 0.05,
+      "double_refund_count": 1,
+      "unauthorized_adjustment_count": 2,
+      "dealer_non_payment_prob": 0.01,
+      "delayed_billing_prob": 0.003,
+      "late_payment_share": 0.25,
+      "extra": {}
+    },
+    "params": {
+      "chunk_size": 5000,
+      "chunks": [
+        500,
+        2000,
+        5000,
+        20000
+      ],
+      "ingest_compare_lines": 20000,
+      "sql_reps": 20,
+      "kill_at": 0.4,
+      "profile_rows": 50000,
+      "load_shares": [
+        0.5,
+        0.9
+      ],
+      "load_seconds": 60
+    },
+    "experiments": [
+      "generation",
+      "ingest_comparison",
+      "continuous",
+      "gold",
+      "leak_hunter",
+      "sql_serving",
+      "time_machine",
+      "storage",
+      "drop_continuous",
+      "bronze_template",
+      "backfill",
+      "recovery",
+      "profile",
+      "load"
+    ],
+    "log_level": "WARNING"
+  },
+  "environment": {
+    "cpus": 4,
+    "cpus_usable": 4,
+    "cpu_model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "memory_gb": 15.7,
+    "platform": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "psycopg": "3.2.13",
+    "postgres": "16.15",
+    "postgres_settings": {
+      "shared_buffers": "256MB",
+      "work_mem": "32MB",
+      "max_wal_size": "1GB",
+      "synchronous_commit": "on",
+      "max_parallel_workers_per_gather": "2"
+    },
+    "git_commit": "c448e7a",
+    "git_dirty": false,
+    "postgres_container": "signalflow-postgres-1",
+    "containers_running": [
+      "signalflow-postgres-1"
+    ],
+    "load_average_at_start": [
+      1.42,
+      1.24,
+      1.13
+    ]
+  },
+  "experiments": {
+    "generation": {
+      "generated_now": true,
+      "seconds": 50.59,
+      "lines_per_second": 19843,
+      "arrival_files": 364,
+      "arrival_bytes": 472233978,
+      "lines": 1003875,
+      "unique_valid_events": 998963,
+      "valid_events_by_type": {
+        "mfg.dealer_order": 1644,
+        "mfg.dealer_settlement": 578,
+        "mfg.inventory_movement": 1478,
+        "mfg.invoice": 1134,
+        "mfg.order_status": 496,
+        "mfg.product_return": 50,
+        "mfg.production_batch": 161,
+        "mfg.refund": 51,
+        "mfg.shipment": 2145,
+        "mfg.stock_count_approval": 28,
+        "mfg.supply_disruption": 1,
+        "telecom.billing_charge": 82403,
+        "telecom.channel_settlement": 52,
+        "telecom.package_activation": 27645,
+        "telecom.payment_capture": 27645,
+        "telecom.recharge": 85202,
+        "telecom.subscriber_lifecycle": 19515,
+        "telecom.usage_record": 748735
+      },
+      "technical_duplicates": 4897,
+      "quarantine_expected": 15,
+      "experiment_seconds": 50.59
+    },
+    "ingest_comparison": {
+      "files": 3,
+      "lines": 20704,
+      "row_by_row_insert": {
+        "seconds": 8.266,
+        "python_cpu_seconds": 2.772,
+        "python_cores": 0.34,
+        "postgres_cpu_seconds": 3.253,
+        "postgres_cores": 0.39,
+        "lines_per_second": 2505
+      },
+      "copy_staging": {
+        "seconds": 1.009,
+        "python_cpu_seconds": 0.182,
+        "python_cores": 0.18,
+        "postgres_cpu_seconds": 0.817,
+        "postgres_cores": 0.81,
+        "lines_per_second": 20519
+      },
+      "speedup": 8.2,
+      "checks": [
+        {
+          "check": "Both loaders store identical Bronze rows",
+          "expected": [
+            20704,
+            "656df22988c57400b1027a4f0c98bbb0"
+          ],
+          "observed": [
+            20704,
+            "656df22988c57400b1027a4f0c98bbb0"
+          ],
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 10.25
+    },
+    "continuous": {
+      "chunk_size": 5000,
+      "files": 364,
+      "lines": 1003875,
+      "seconds": 136.252,
+      "python_cpu_seconds": 58.613,
+      "python_cores": 0.43,
+      "postgres_cpu_seconds": 83.085,
+      "postgres_cores": 0.61,
+      "events_per_second": 7368,
+      "bronze_load_lines_per_second": 20683,
+      "silver_rows_per_second": 11456,
+      "share_of_time_loading_bronze": 0.356,
+      "file_lines": {
+        "n": 364,
+        "min": 1.0,
+        "p50": 3234.0,
+        "p95": 4973.0,
+        "p99": 5255.0,
+        "max": 18048.0,
+        "mean": 2757.8984
+      },
+      "latency_arrival_to_silver_ms": {
+        "n": 1003875,
+        "min": 8.5256,
+        "p50": 478.3862,
+        "p95": 724.3384,
+        "p99": 2453.9621,
+        "max": 2453.9621,
+        "mean": 514.0601
+      },
+      "latency_bronze_to_silver_ms": {
+        "n": 1003875,
+        "min": 5.6634,
+        "p50": 311.3448,
+        "p95": 483.4246,
+        "p99": 1656.5049,
+        "max": 1656.5049,
+        "mean": 331.3695
+      },
+      "batches": {
+        "batches": 382,
+        "batch_ms": {
+          "n": 382,
+          "min": 3.454,
+          "p50": 244.105,
+          "p95": 388.42,
+          "p99": 494.373,
+          "max": 912.258,
+          "mean": 215.7259
+        },
+        "processing_span_seconds": 135.364,
+        "rows_per_second_processing_span": 7416
+      },
+      "postgres": {
+        "xact_commit": 1073,
+        "blks_read": 110034,
+        "blks_hit": 29203426,
+        "tup_inserted": 3027047,
+        "tup_updated": 3613,
+        "tup_deleted": 14,
+        "temp_bytes": 0,
+        "wal_bytes": 2092419816,
+        "cache_hit_ratio": 0.9962
+      },
+      "silver_fingerprint": {
+        "events": 998963,
+        "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+      },
+      "checks": [
+        {
+          "check": "Silver holds every unique valid event once",
+          "expected": 998963,
+          "observed": 998963,
+          "passed": true
+        },
+        {
+          "check": "Silver event ids equal the valid event ids (missing, unexpected)",
+          "expected": [
+            0,
+            0
+          ],
+          "observed": [
+            0,
+            0
+          ],
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded",
+          "expected": 4897,
+          "observed": 4897,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 140.37
+    },
+    "gold": {
+      "dbt_build": {
+        "seconds": 11.86,
+        "python_cpu_seconds": 0.015,
+        "python_cores": 0.0,
+        "postgres_cpu_seconds": 15.497,
+        "postgres_cores": 1.31,
+        "returncode": 0,
+        "summary": {
+          "pass": 102,
+          "warn": 0,
+          "error": 0,
+          "skip": 0
+        }
+      },
+      "gold_refresh_revenue_path": {
+        "seconds": 5.16,
+        "python_cpu_seconds": 0.004,
+        "python_cores": 0.0,
+        "postgres_cpu_seconds": 2.957,
+        "postgres_cores": 0.57,
+        "returncode": 0,
+        "summary": {
+          "pass": 6,
+          "warn": 0,
+          "error": 0,
+          "skip": 0
+        }
+      },
+      "gold_rows": 972464,
+      "gross_recharge_bdt": "13395300.00",
+      "checks": [
+        {
+          "check": "Gold daily revenue per date, channel and region equals truth to the poisha (cells differing)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Gold total recharge revenue equals truth (poisha)",
+          "expected": 1339530000,
+          "observed": 1339530000,
+          "passed": true
+        },
+        {
+          "check": "Gold total equals the sum of successful recharges in Silver",
+          "expected": "13395300.00",
+          "observed": "13395300.00",
+          "passed": true
+        },
+        {
+          "check": "Gold stock per warehouse and SKU equals truth (positions differing)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Settlement reconciliation flags exactly the injected mismatches",
+          "expected": [
+            "STL-MOBILE_WALLET-20261005"
+          ],
+          "observed": [
+            "STL-MOBILE_WALLET-20261005"
+          ],
+          "passed": true
+        },
+        {
+          "check": "dbt build has no errors, warnings or skips",
+          "expected": [
+            0,
+            0,
+            0
+          ],
+          "observed": [
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 17.56
+    },
+    "leak_hunter": {
+      "seconds": 4.839,
+      "python_cpu_seconds": 0.283,
+      "python_cores": 0.06,
+      "postgres_cpu_seconds": 4.27,
+      "postgres_cores": 0.88,
+      "cases_by_status": {
+        "PENDING": 8,
+        "SUSPICIOUS": 92,
+        "CONFIRMED_BY_RULE": 597
+      },
+      "rules": 10,
+      "scenarios": {
+        "TEL-01": {
+          "scenario": "MISSING_BILLING",
+          "positives": 344,
+          "confirmed_tp": 299,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.8692,
+          "missed": 0
+        },
+        "TEL-02": {
+          "scenario": "DUPLICATE_PAYMENT_CHARGE",
+          "positives": 150,
+          "confirmed_tp": 136,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.9067,
+          "missed": 0
+        },
+        "TEL-03": {
+          "scenario": "ACTIVATION_WITHOUT_CAPTURE",
+          "positives": 150,
+          "confirmed_tp": 122,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.8133,
+          "missed": 0
+        },
+        "TEL-04": {
+          "scenario": "SETTLEMENT_MISMATCH",
+          "positives": 1,
+          "confirmed_tp": 1,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 1.0,
+          "missed": 0
+        },
+        "MFG-01": {
+          "scenario": "SHIPMENT_WITHOUT_INVOICE",
+          "positives": 7,
+          "confirmed_tp": 6,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.8571,
+          "missed": 0
+        },
+        "MFG-02": {
+          "scenario": "DEALER_SETTLEMENT_MISMATCH",
+          "positives": 29,
+          "confirmed_tp": 25,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.8621,
+          "missed": 0
+        },
+        "MFG-03": {
+          "scenario": "DOUBLE_REFUND",
+          "positives": 1,
+          "confirmed_tp": 1,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 1.0,
+          "missed": 0
+        },
+        "MFG-04": {
+          "scenario": "UNAUTHORIZED_ADJUSTMENT",
+          "positives": 2,
+          "confirmed_tp": 2,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 1.0,
+          "missed": 0
+        },
+        "MFG-05": {
+          "scenario": "DEALER_NON_PAYMENT",
+          "positives": 15,
+          "confirmed_tp": 5,
+          "confirmed_fp": 0,
+          "precision_confirmed": 1.0,
+          "recall_confirmed": 0.3333,
+          "missed": 10
+        }
+      },
+      "hunt": {
+        "run_id": 1,
+        "as_of": {
+          "mfg": "2026-10-14T17:58:05.323000+00:00",
+          "telecom": "2026-10-14T17:59:59.956000+00:00"
+        },
+        "observed": 697,
+        "opened": 697,
+        "status_changes": 0,
+        "auto_cleared": 0,
+        "reopened": 0,
+        "per_rule": {
+          "TEL-01": {
+            "observed": 345,
+            "as_of": "2026-10-14T17:59:59.956000+00:00",
+            "CONFIRMED_BY_RULE": 299,
+            "SUSPICIOUS": 45,
+            "PENDING": 1
+          },
+          "TEL-02": {
+            "observed": 150,
+            "as_of": "2026-10-14T17:59:59.956000+00:00",
+            "CONFIRMED_BY_RULE": 136,
+            "SUSPICIOUS": 14
+          },
+          "TEL-03": {
+            "observed": 150,
+            "as_of": "2026-10-14T17:59:59.956000+00:00",
+            "CONFIRMED_BY_RULE": 122,
+            "SUSPICIOUS": 28
+          },
+          "TEL-04": {
+            "observed": 1,
+            "as_of": "2026-10-14T17:59:59.956000+00:00",
+            "CONFIRMED_BY_RULE": 1
+          },
+          "TEL-05": {
+            "observed": 0,
+            "as_of": "2026-10-14T17:59:59.956000+00:00"
+          },
+          "MFG-01": {
+            "observed": 9,
+            "as_of": "2026-10-14T17:58:05.323000+00:00",
+            "CONFIRMED_BY_RULE": 6,
+            "PENDING": 2,
+            "SUSPICIOUS": 1
+          },
+          "MFG-02": {
+            "observed": 29,
+            "as_of": "2026-10-14T17:58:05.323000+00:00",
+            "CONFIRMED_BY_RULE": 25,
+            "SUSPICIOUS": 4
+          },
+          "MFG-03": {
+            "observed": 1,
+            "as_of": "2026-10-14T17:58:05.323000+00:00",
+            "CONFIRMED_BY_RULE": 1
+          },
+          "MFG-04": {
+            "observed": 2,
+            "as_of": "2026-10-14T17:58:05.323000+00:00",
+            "CONFIRMED_BY_RULE": 2
+          },
+          "MFG-05": {
+            "observed": 10,
+            "as_of": "2026-10-14T17:58:05.323000+00:00",
+            "CONFIRMED_BY_RULE": 5,
+            "PENDING": 5
+          }
+        }
+      },
+      "checks": [
+        {
+          "check": "Leak Hunter evaluation passes (no false confirmation, benign timing never confirmed)",
+          "expected": true,
+          "observed": true,
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 5.03
+    },
+    "sql_serving": {
+      "repetitions": 20,
+      "warmup": 2,
+      "silver_rows": 998963,
+      "queries": [
+        {
+          "query": "Recharge revenue by day, channel and region (whole period)",
+          "baseline": "Silver jsonb, aggregated at query time",
+          "optimized": "Gold mart built by dbt",
+          "rows": 448,
+          "baseline_ms": {
+            "n": 20,
+            "min": 234.8154,
+            "p50": 279.0541,
+            "p95": 331.4472,
+            "p99": 340.2252,
+            "max": 340.2252,
+            "mean": 279.7296
+          },
+          "optimized_ms": {
+            "n": 20,
+            "min": 0.7913,
+            "p50": 0.9696,
+            "p95": 1.5223,
+            "p99": 1.7932,
+            "max": 1.7932,
+            "mean": 1.0397
+          },
+          "speedup_p50": 287.8,
+          "checks": [
+            {
+              "check": "Same result from both (Recharge revenue by day, channel and region (whole period))",
+              "expected": true,
+              "observed": true,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "query": "Usage by day, region and type (whole period)",
+          "baseline": "Silver jsonb, aggregated at query time",
+          "optimized": "Gold mart built by dbt",
+          "rows": 336,
+          "baseline_ms": {
+            "n": 20,
+            "min": 1712.5732,
+            "p50": 1806.3888,
+            "p95": 1968.627,
+            "p99": 2021.5963,
+            "max": 2021.5963,
+            "mean": 1841.8157
+          },
+          "optimized_ms": {
+            "n": 20,
+            "min": 0.5179,
+            "p50": 0.7262,
+            "p95": 0.9507,
+            "p99": 1.2008,
+            "max": 1.2008,
+            "mean": 0.7477
+          },
+          "speedup_p50": 2487.5,
+          "checks": [
+            {
+              "check": "Same result from both (Usage by day, region and type (whole period))",
+              "expected": true,
+              "observed": true,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "query": "One day's recharge revenue (a dashboard tile)",
+          "baseline": "Silver jsonb through the (event_type, event_time) index",
+          "optimized": "Gold mart built by dbt",
+          "rows": 1,
+          "baseline_ms": {
+            "n": 20,
+            "min": 3.9776,
+            "p50": 5.2387,
+            "p95": 7.2426,
+            "p99": 8.1135,
+            "max": 8.1135,
+            "mean": 5.3933
+          },
+          "optimized_ms": {
+            "n": 20,
+            "min": 0.1544,
+            "p50": 0.2391,
+            "p95": 0.7418,
+            "p99": 0.7826,
+            "max": 0.7826,
+            "mean": 0.361
+          },
+          "speedup_p50": 21.9,
+          "checks": [
+            {
+              "check": "Same result from both (One day's recharge revenue (a dashboard tile))",
+              "expected": true,
+              "observed": true,
+              "passed": true
+            }
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "check": "Same result from both (Recharge revenue by day, channel and region (whole period))",
+          "expected": true,
+          "observed": true,
+          "passed": true
+        },
+        {
+          "check": "Same result from both (Usage by day, region and type (whole period))",
+          "expected": true,
+          "observed": true,
+          "passed": true
+        },
+        {
+          "check": "Same result from both (One day's recharge revenue (a dashboard tile))",
+          "expected": true,
+          "observed": true,
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 47.45
+    },
+    "time_machine": {
+      "seconds": 58.588,
+      "python_cpu_seconds": 35.943,
+      "python_cores": 0.61,
+      "postgres_cpu_seconds": 36.628,
+      "postgres_cores": 0.63,
+      "window_hours": 72.0,
+      "records": 207028,
+      "records_per_second": 3534,
+      "changes": {
+        "NONE": 1067,
+        "UNCHANGED": 205961
+      },
+      "checks": [
+        {
+          "check": "Replay of an undamaged window changes, inserts or removes nothing",
+          "expected": {},
+          "observed": {},
+          "passed": true
+        },
+        {
+          "check": "Replay fingerprint equals Silver",
+          "expected": "56b50890014e9fce35296bec12beeca6",
+          "observed": "56b50890014e9fce35296bec12beeca6",
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 58.69
+    },
+    "storage": {
+      "database_bytes": 1985870871,
+      "table_bytes": {
+        "bronze.raw_events": 1022877696,
+        "silver.events": 574586880,
+        "silver.quarantine": 49152,
+        "ops.duplicate_events": 499712,
+        "ops.processing_runs": 90112
+      },
+      "gold_bytes": 149258240,
+      "arrival_file_bytes": 472233978,
+      "bronze_bytes_per_line": 1019,
+      "silver_bytes_per_event": 575,
+      "database_to_file_ratio": 4.21,
+      "experiment_seconds": 0.02
+    },
+    "drop_continuous": {
+      "dropped": "signalflow_bench",
+      "experiment_seconds": 1.68
+    },
+    "bronze_template": {
+      "seconds": 48.506,
+      "python_cpu_seconds": 8.852,
+      "python_cores": 0.18,
+      "postgres_cpu_seconds": 39.667,
+      "postgres_cores": 0.82,
+      "lines": 1003875,
+      "lines_per_second": 20696,
+      "database_bytes": 1031979535,
+      "clone_seconds": 1.783,
+      "experiment_seconds": 51.96
+    },
+    "backfill": {
+      "runs": [
+        {
+          "validator": "reference",
+          "chunk_size": 5000,
+          "rows": 1003875,
+          "returncode": 0,
+          "seconds": 216.862,
+          "worker_cpu_seconds": 178.859,
+          "worker_cores": 0.82,
+          "worker_peak_rss_mb": 65.7,
+          "postgres_cpu_seconds": 45.341,
+          "postgres_cores": 0.21,
+          "rows_per_second": 4629,
+          "batches": 201,
+          "batch_ms": {
+            "n": 201,
+            "min": 723.091,
+            "p50": 1059.845,
+            "p95": 1206.44,
+            "p99": 1234.646,
+            "max": 1255.433,
+            "mean": 1055.1078
+          },
+          "processing_span_seconds": 216.484,
+          "rows_per_second_processing_span": 4637,
+          "arrival_classes": {
+            "LATE_BEYOND_WATERMARK": 14958,
+            "LATE_WITHIN_WATERMARK": 9140,
+            "ON_TIME": 974865
+          },
+          "postgres": {
+            "xact_commit": 257,
+            "blks_read": 208414,
+            "blks_hit": 14327786,
+            "tup_inserted": 1020194,
+            "tup_updated": 2880,
+            "tup_deleted": 14,
+            "temp_bytes": 0,
+            "wal_bytes": 1496510360,
+            "cache_hit_ratio": 0.9857
+          },
+          "checks": [
+            {
+              "check": "Worker exited cleanly (reference validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Backlog drained (reference validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Silver fingerprint equals the continuous run (reference validator, chunk 5000)",
+              "expected": {
+                "events": 998963,
+                "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+              },
+              "observed": {
+                "events": 998963,
+                "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+              },
+              "passed": true
+            },
+            {
+              "check": "Technical duplicates logged, not loaded (reference validator, chunk 5000)",
+              "expected": 4897,
+              "observed": 4897,
+              "passed": true
+            },
+            {
+              "check": "Quarantine by reason (reference validator, chunk 5000)",
+              "expected": {
+                "CONTRACT_VIOLATION": 8,
+                "ENVELOPE_VIOLATION": 2,
+                "EVENT_ID_CONFLICT": 2,
+                "UNPARSEABLE": 1,
+                "UNSUPPORTED_SCHEMA_VERSION": 2
+              },
+              "observed": {
+                "EVENT_ID_CONFLICT": 2,
+                "ENVELOPE_VIOLATION": 2,
+                "CONTRACT_VIOLATION": 8,
+                "UNSUPPORTED_SCHEMA_VERSION": 2,
+                "UNPARSEABLE": 1
+              },
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps (reference validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "validator": "compiled",
+          "chunk_size": 500,
+          "rows": 1003875,
+          "returncode": 0,
+          "seconds": 107.688,
+          "worker_cpu_seconds": 53.402,
+          "worker_cores": 0.5,
+          "worker_peak_rss_mb": 48.4,
+          "postgres_cpu_seconds": 49.045,
+          "postgres_cores": 0.46,
+          "rows_per_second": 9322,
+          "batches": 2008,
+          "batch_ms": {
+            "n": 2008,
+            "min": 35.854,
+            "p50": 48.857,
+            "p95": 61.985,
+            "p99": 70.612,
+            "max": 142.561,
+            "mean": 50.0191
+          },
+          "processing_span_seconds": 107.323,
+          "rows_per_second_processing_span": 9354,
+          "arrival_classes": {
+            "LATE_BEYOND_WATERMARK": 19480,
+            "LATE_WITHIN_WATERMARK": 9858,
+            "ON_TIME": 969625
+          },
+          "postgres": {
+            "xact_commit": 2047,
+            "blks_read": 150826,
+            "blks_hit": 15444067,
+            "tup_inserted": 1026513,
+            "tup_updated": 19618,
+            "tup_deleted": 4,
+            "temp_bytes": 0,
+            "wal_bytes": 1493859064,
+            "cache_hit_ratio": 0.9903
+          },
+          "checks": [
+            {
+              "check": "Worker exited cleanly (compiled validator, chunk 500)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Backlog drained (compiled validator, chunk 500)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 500)",
+              "expected": {
+                "events": 998963,
+                "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+              },
+              "observed": {
+                "events": 998963,
+                "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+              },
+              "passed": true
+            },
+            {
+              "check": "Technical duplicates logged, not loaded (compiled validator, chunk 500)",
+              "expected": 4897,
+              "observed": 4897,
+              "passed": true
+            },
+            {
+              "check": "Quarantine by reason (compiled validator, chunk 500)",
+              "expected": {
+                "CONTRACT_VIOLATION": 8,
+                "ENVELOPE_VIOLATION": 2,
+                "EVENT_ID_CONFLICT": 2,
+                "UNPARSEABLE": 1,
+                "UNSUPPORTED_SCHEMA_VERSION": 2
+              },
+              "observed": {
+                "EVENT_ID_CONFLICT": 2,
+                "ENVELOPE_VIOLATION": 2,
+                "CONTRACT_VIOLATION": 8,
+                "UNSUPPORTED_SCHEMA_VERSION": 2,
+                "UNPARSEABLE": 1
+              },
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 500)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "validator": "compiled",
+          "chunk_size": 2000,
+          "rows": 1003875,
+          "returncode": 0,
+          "seconds": 90.916,
+          "worker_cpu_seconds": 49.679,
+          "worker_cores": 0.55,
+          "worker_peak_rss_mb": 52.9,
+          "postgres_cpu_seconds": 43.279,
+          "postgres_cores": 0.48,
+          "rows_per_second": 11042,
+          "batches": 502,
+          "batch_ms": {
+            "n": 502,
+            "min": 126.25,
+            "p50": 166.043,
+            "p95": 201.113,
+            "p99": 226.502,
+            "max": 412.57,
+            "mean": 168.243
+          },
+          "processing_span_seconds": 90.508,
+          "rows_per_second_processing_span": 11092,
+          "arrival_classes": {
+            "LATE_BEYOND_WATERMARK": 17978,
+            "LATE_WITHIN_WATERMARK": 9757,
+            "ON_TIME": 971228
+          },
+          "postgres": {
+            "xact_commit": 535,
+            "blks_read": 161708,
+            "blks_hit": 15361006,
+            "tup_inserted": 1023507,
+            "tup_updated": 8026,
+            "tup_deleted": 6,
+            "temp_bytes": 0,
+            "wal_bytes": 1491638336,
+            "cache_hit_ratio": 0.9896
+          },
+          "checks": [
+            {
+              "check": "Worker exited cleanly (compiled validator, chunk 2000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Backlog drained (compiled validator, chunk 2000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 2000)",
+              "expected": {
+                "events": 998963,
+                "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+              },
+              "observed": {
+                "events": 998963,
+                "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+              },
+              "passed": true
+            },
+            {
+              "check": "Technical duplicates logged, not loaded (compiled validator, chunk 2000)",
+              "expected": 4897,
+              "observed": 4897,
+              "passed": true
+            },
+            {
+              "check": "Quarantine by reason (compiled validator, chunk 2000)",
+              "expected": {
+                "CONTRACT_VIOLATION": 8,
+                "ENVELOPE_VIOLATION": 2,
+                "EVENT_ID_CONFLICT": 2,
+                "UNPARSEABLE": 1,
+                "UNSUPPORTED_SCHEMA_VERSION": 2
+              },
+              "observed": {
+                "EVENT_ID_CONFLICT": 2,
+                "ENVELOPE_VIOLATION": 2,
+                "CONTRACT_VIOLATION": 8,
+                "UNSUPPORTED_SCHEMA_VERSION": 2,
+                "UNPARSEABLE": 1
+              },
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 2000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "validator": "compiled",
+          "chunk_size": 5000,
+          "rows": 1003875,
+          "returncode": 0,
+          "seconds": 88.667,
+          "worker_cpu_seconds": 50.36,
+          "worker_cores": 0.57,
+          "worker_peak_rss_mb": 66.2,
+          "postgres_cpu_seconds": 43.583,
+          "postgres_cores": 0.49,
+          "rows_per_second": 11322,
+          "batches": 201,
+          "batch_ms": {
+            "n": 201,
+            "min": 325.986,
+            "p50": 408.791,
+            "p95": 480.936,
+            "p99": 509.056,
+            "max": 582.986,
+            "mean": 413.5297
+          },
+          "processing_span_seconds": 88.21,
+          "rows_per_second_processing_span": 11381,
+          "arrival_classes": {
+            "LATE_BEYOND_WATERMARK": 14958,
+            "LATE_WITHIN_WATERMARK": 9140,
+            "ON_TIME": 974865
+          },
+          "postgres": {
+            "xact_commit": 235,
+            "blks_read": 163041,
+            "blks_hit": 15263729,
+            "tup_inserted": 1020187,
+            "tup_updated": 2835,
+            "tup_deleted": 7,
+            "temp_bytes": 0,
+            "wal_bytes": 1490232376,
+            "cache_hit_ratio": 0.9894
+          },
+          "checks": [
+            {
+              "check": "Worker exited cleanly (compiled validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Backlog drained (compiled validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 5000)",
+              "expected": {
+                "events": 998963,
+                "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+              },
+              "observed": {
+                "events": 998963,
+                "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+              },
+              "passed": true
+            },
+            {
+              "check": "Technical duplicates logged, not loaded (compiled validator, chunk 5000)",
+              "expected": 4897,
+              "observed": 4897,
+              "passed": true
+            },
+            {
+              "check": "Quarantine by reason (compiled validator, chunk 5000)",
+              "expected": {
+                "CONTRACT_VIOLATION": 8,
+                "ENVELOPE_VIOLATION": 2,
+                "EVENT_ID_CONFLICT": 2,
+                "UNPARSEABLE": 1,
+                "UNSUPPORTED_SCHEMA_VERSION": 2
+              },
+              "observed": {
+                "EVENT_ID_CONFLICT": 2,
+                "ENVELOPE_VIOLATION": 2,
+                "CONTRACT_VIOLATION": 8,
+                "UNSUPPORTED_SCHEMA_VERSION": 2,
+                "UNPARSEABLE": 1
+              },
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 5000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "validator": "compiled",
+          "chunk_size": 20000,
+          "rows": 1003875,
+          "returncode": 0,
+          "seconds": 85.391,
+          "worker_cpu_seconds": 50.132,
+          "worker_cores": 0.59,
+          "worker_peak_rss_mb": 134.0,
+          "postgres_cpu_seconds": 40.429,
+          "postgres_cores": 0.47,
+          "rows_per_second": 11756,
+          "batches": 51,
+          "batch_ms": {
+            "n": 51,
+            "min": 323.785,
+            "p50": 1651.865,
+            "p95": 1837.871,
+            "p99": 2032.469,
+            "max": 2032.469,
+            "mean": 1625.1374
+          },
+          "processing_span_seconds": 84.981,
+          "rows_per_second_processing_span": 11813,
+          "arrival_classes": {
+            "LATE_BEYOND_WATERMARK": 1805,
+            "LATE_WITHIN_WATERMARK": 4370,
+            "ON_TIME": 992788
+          },
+          "postgres": {
+            "xact_commit": 76,
+            "blks_read": 173200,
+            "blks_hit": 14788714,
+            "tup_inserted": 1005800,
+            "tup_updated": 202,
+            "tup_deleted": 6,
+            "temp_bytes": 0,
+            "wal_bytes": 1486181784,
+            "cache_hit_ratio": 0.9884
+          },
+          "checks": [
+            {
+              "check": "Worker exited cleanly (compiled validator, chunk 20000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Backlog drained (compiled validator, chunk 20000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            },
+            {
+              "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 20000)",
+              "expected": {
+                "events": 998963,
+                "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+              },
+              "observed": {
+                "events": 998963,
+                "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+              },
+              "passed": true
+            },
+            {
+              "check": "Technical duplicates logged, not loaded (compiled validator, chunk 20000)",
+              "expected": 4897,
+              "observed": 4897,
+              "passed": true
+            },
+            {
+              "check": "Quarantine by reason (compiled validator, chunk 20000)",
+              "expected": {
+                "CONTRACT_VIOLATION": 8,
+                "ENVELOPE_VIOLATION": 2,
+                "EVENT_ID_CONFLICT": 2,
+                "UNPARSEABLE": 1,
+                "UNSUPPORTED_SCHEMA_VERSION": 2
+              },
+              "observed": {
+                "EVENT_ID_CONFLICT": 2,
+                "ENVELOPE_VIOLATION": 2,
+                "CONTRACT_VIOLATION": 8,
+                "UNSUPPORTED_SCHEMA_VERSION": 2,
+                "UNPARSEABLE": 1
+              },
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 20000)",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        }
+      ],
+      "baseline": {
+        "validator": "reference",
+        "chunk_size": 5000
+      },
+      "best_chunk": 20000,
+      "speedup_validator": 2.45,
+      "speedup_best_vs_baseline": 2.54,
+      "speedup_best_vs_smallest_chunk": 1.26,
+      "capacity_rows_per_second": 11381,
+      "checks": [
+        {
+          "check": "Worker exited cleanly (reference validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained (reference validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (reference validator, chunk 5000)",
+          "expected": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "observed": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded (reference validator, chunk 5000)",
+          "expected": 4897,
+          "observed": 4897,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason (reference validator, chunk 5000)",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps (reference validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Worker exited cleanly (compiled validator, chunk 500)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained (compiled validator, chunk 500)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 500)",
+          "expected": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "observed": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded (compiled validator, chunk 500)",
+          "expected": 4897,
+          "observed": 4897,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason (compiled validator, chunk 500)",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 500)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Worker exited cleanly (compiled validator, chunk 2000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained (compiled validator, chunk 2000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 2000)",
+          "expected": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "observed": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded (compiled validator, chunk 2000)",
+          "expected": 4897,
+          "observed": 4897,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason (compiled validator, chunk 2000)",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 2000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Worker exited cleanly (compiled validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained (compiled validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 5000)",
+          "expected": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "observed": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded (compiled validator, chunk 5000)",
+          "expected": 4897,
+          "observed": 4897,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason (compiled validator, chunk 5000)",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 5000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Worker exited cleanly (compiled validator, chunk 20000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained (compiled validator, chunk 20000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (compiled validator, chunk 20000)",
+          "expected": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "observed": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged, not loaded (compiled validator, chunk 20000)",
+          "expected": 4897,
+          "observed": 4897,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason (compiled validator, chunk 20000)",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps (compiled validator, chunk 20000)",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 618.1
+    },
+    "recovery": {
+      "chunk_size": 5000,
+      "bronze_rows": 1003875,
+      "killed_after_seconds": 35.231,
+      "checkpoint_at_kill": 405000,
+      "share_done_at_kill": 0.403,
+      "backlog_at_kill": 598875,
+      "restart_to_drained_seconds": 52.864,
+      "rows_per_second_after_restart": 11329,
+      "worker": {
+        "returncode": 0,
+        "seconds": 52.864,
+        "worker_cpu_seconds": 30.027,
+        "worker_cores": 0.57,
+        "worker_peak_rss_mb": 65.1,
+        "postgres_cpu_seconds": 25.981,
+        "postgres_cores": 0.49
+      },
+      "checks": [
+        {
+          "check": "Killed while work remained",
+          "expected": true,
+          "observed": true,
+          "passed": true
+        },
+        {
+          "check": "No Silver, quarantine or duplicate row past the checkpoint after the kill",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Restarted worker exited cleanly",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Backlog drained after restart",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Technical duplicates logged once",
+          "expected": 4897,
+          "observed": 4897,
+          "passed": true
+        },
+        {
+          "check": "Quarantine by reason",
+          "expected": {
+            "CONTRACT_VIOLATION": 8,
+            "ENVELOPE_VIOLATION": 2,
+            "EVENT_ID_CONFLICT": 2,
+            "UNPARSEABLE": 1,
+            "UNSUPPORTED_SCHEMA_VERSION": 2
+          },
+          "observed": {
+            "EVENT_ID_CONFLICT": 2,
+            "ENVELOPE_VIOLATION": 2,
+            "CONTRACT_VIOLATION": 8,
+            "UNSUPPORTED_SCHEMA_VERSION": 2,
+            "UNPARSEABLE": 1
+          },
+          "passed": true
+        },
+        {
+          "check": "Silver fingerprint equals the continuous run (after kill and restart)",
+          "expected": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "observed": {
+            "events": 998963,
+            "md5": "bb0cf302a7e31767afb89f2955c2d12e"
+          },
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 93.46
+    },
+    "profile": {
+      "runs": [
+        {
+          "validator": "reference",
+          "lines": 51647,
+          "seconds": 25.21,
+          "python_cpu_seconds": 23.201,
+          "python_cores": 0.92,
+          "postgres_cpu_seconds": 2.439,
+          "postgres_cores": 0.1,
+          "profiled_seconds": 25.05,
+          "by_category": [
+            {
+              "category": "contract validation (jsonschema)",
+              "seconds": 15.374,
+              "share": 0.614
+            },
+            {
+              "category": "other (interpreter, stdlib)",
+              "seconds": 4.098,
+              "share": 0.164
+            },
+            {
+              "category": "Postgres driver and waiting on the server",
+              "seconds": 2.647,
+              "share": 0.106
+            },
+            {
+              "category": "SignalFlow processor code",
+              "seconds": 1.639,
+              "share": 0.065
+            },
+            {
+              "category": "JSON parse and serialise",
+              "seconds": 1.142,
+              "share": 0.046
+            },
+            {
+              "category": "timestamps",
+              "seconds": 0.097,
+              "share": 0.004
+            },
+            {
+              "category": "hashing",
+              "seconds": 0.053,
+              "share": 0.002
+            }
+          ],
+          "top_functions": [
+            {
+              "function": "validators.py:396:descend",
+              "calls": 930411,
+              "seconds": 2.763,
+              "share": 0.11
+            },
+            {
+              "function": "validators.py:339:evolve",
+              "calls": 1013308,
+              "seconds": 2.033,
+              "share": 0.081
+            },
+            {
+              "function": "connection.py:445:wait",
+              "calls": 938,
+              "seconds": 1.655,
+              "share": 0.066
+            },
+            {
+              "function": "_types.py:94:is_type",
+              "calls": 1835225,
+              "seconds": 1.271,
+              "share": 0.051
+            },
+            {
+              "function": "validators.py:282:__attrs_post_init__",
+              "calls": 1013308,
+              "seconds": 1.055,
+              "share": 0.042
+            },
+            {
+              "function": "_keywords.py:290:properties",
+              "calls": 268954,
+              "seconds": 0.752,
+              "share": 0.03
+            },
+            {
+              "function": "~:0:<built-in method builtins.isinstance>",
+              "calls": 5177465,
+              "seconds": 0.725,
+              "share": 0.029
+            },
+            {
+              "function": "_keywords.py:282:type",
+              "calls": 810945,
+              "seconds": 0.706,
+              "share": 0.028
+            },
+            {
+              "function": "validators.py:452:is_type",
+              "calls": 1835225,
+              "seconds": 0.615,
+              "share": 0.025
+            },
+            {
+              "function": "~:0:<built-in method builtins.getattr>",
+              "calls": 4570376,
+              "seconds": 0.608,
+              "share": 0.024
+            },
+            {
+              "function": "_core.py:165:create_resource",
+              "calls": 930411,
+              "seconds": 0.583,
+              "share": 0.023
+            },
+            {
+              "function": "~:0:<method 'get' of 'dict' objects>",
+              "calls": 2967346,
+              "seconds": 0.539,
+              "share": 0.022
+            }
+          ]
+        },
+        {
+          "validator": "compiled",
+          "lines": 51647,
+          "seconds": 7.376,
+          "python_cpu_seconds": 5.621,
+          "python_cores": 0.76,
+          "postgres_cpu_seconds": 2.943,
+          "postgres_cores": 0.4,
+          "profiled_seconds": 7.226,
+          "by_category": [
+            {
+              "category": "Postgres driver and waiting on the server",
+              "seconds": 2.73,
+              "share": 0.378
+            },
+            {
+              "category": "SignalFlow processor code",
+              "seconds": 1.257,
+              "share": 0.174
+            },
+            {
+              "category": "JSON parse and serialise",
+              "seconds": 1.084,
+              "share": 0.15
+            },
+            {
+              "category": "other (interpreter, stdlib)",
+              "seconds": 0.995,
+              "share": 0.138
+            },
+            {
+              "category": "contract validation (compiled)",
+              "seconds": 0.97,
+              "share": 0.134
+            },
+            {
+              "category": "timestamps",
+              "seconds": 0.089,
+              "share": 0.012
+            },
+            {
+              "category": "hashing",
+              "seconds": 0.059,
+              "share": 0.008
+            },
+            {
+              "category": "contract validation (jsonschema)",
+              "seconds": 0.042,
+              "share": 0.006
+            }
+          ],
+          "top_functions": [
+            {
+              "function": "connection.py:445:wait",
+              "calls": 938,
+              "seconds": 1.636,
+              "share": 0.226
+            },
+            {
+              "function": "encoder.py:205:iterencode",
+              "calls": 103130,
+              "seconds": 0.48,
+              "share": 0.066
+            },
+            {
+              "function": "<string>:3:validate_signalflow___contracts_envelope_1_0",
+              "calls": 51647,
+              "seconds": 0.436,
+              "share": 0.06
+            },
+            {
+              "function": "<string>:3:validate_signalflow___contracts_telecom_usage_record_1_0",
+              "calls": 25652,
+              "seconds": 0.38,
+              "share": 0.053
+            },
+            {
+              "function": "_pipeline_base.py:108:_communicate_gen",
+              "calls": 48900,
+              "seconds": 0.296,
+              "share": 0.041
+            },
+            {
+              "function": "_copy_base.py:224:write_row",
+              "calls": 51483,
+              "seconds": 0.281,
+              "share": 0.039
+            },
+            {
+              "function": "silver.py:138:apply_validated",
+              "calls": 11,
+              "seconds": 0.242,
+              "share": 0.034
+            },
+            {
+              "function": "~:0:<method 'search' of 're.Pattern' objects>",
+              "calls": 429703,
+              "seconds": 0.233,
+              "share": 0.032
+            },
+            {
+              "function": "contracts.py:137:validate",
+              "calls": 51647,
+              "seconds": 0.213,
+              "share": 0.029
+            },
+            {
+              "function": "~:0:<built-in method builtins.isinstance>",
+              "calls": 1967196,
+              "seconds": 0.209,
+              "share": 0.029
+            },
+            {
+              "function": "decoder.py:343:raw_decode",
+              "calls": 51647,
+              "seconds": 0.201,
+              "share": 0.028
+            },
+            {
+              "function": "contracts.py:64:parse_utc",
+              "calls": 257907,
+              "seconds": 0.174,
+              "share": 0.024
+            }
+          ]
+        }
+      ],
+      "note": "cProfile adds overhead to every Python call, so Python-heavy categories are overstated.",
+      "experiment_seconds": 38.89
+    },
+    "load": {
+      "capacity_rows_per_second": 11381,
+      "consumer_idle_poll_ms": 50,
+      "runs": [
+        {
+          "share_of_capacity": 0.5,
+          "target_rows_per_second": 5690,
+          "files": 116,
+          "lines": 345778,
+          "achieved_arrival_rows_per_second": 5811,
+          "seconds": 60.67,
+          "latency_bronze_to_silver_ms": {
+            "n": 345778,
+            "min": 57.879,
+            "p50": 334.369,
+            "p95": 500.062,
+            "p99": 1408.549,
+            "max": 1709.97,
+            "mean": 361.6776
+          },
+          "drain_after_last_arrival_seconds": 0.462,
+          "backlog_rows": {
+            "n": 236,
+            "min": 0.0,
+            "p50": 1629.0,
+            "p95": 5039.0,
+            "p99": 13048.0,
+            "max": 18048.0,
+            "mean": 2157.0127
+          },
+          "backlog_first_quarter_mean": 2936,
+          "backlog_last_quarter_mean": 2013,
+          "backlog_series": [
+            [
+              0.0,
+              0
+            ],
+            [
+              0.26,
+              0
+            ],
+            [
+              0.52,
+              0
+            ],
+            [
+              0.78,
+              18048
+            ],
+            [
+              1.05,
+              18048
+            ],
+            [
+              1.31,
+              13048
+            ],
+            [
+              1.59,
+              13048
+            ],
+            [
+              1.85,
+              8048
+            ],
+            [
+              2.1,
+              8048
+            ],
+            [
+              2.36,
+              3048
+            ],
+            [
+              2.61,
+              0
+            ],
+            [
+              2.86,
+              0
+            ],
+            [
+              3.11,
+              0
+            ],
+            [
+              3.36,
+              1586
+            ],
+            [
+              3.62,
+              0
+            ],
+            [
+              3.87,
+              660
+            ],
+            [
+              4.13,
+              988
+            ],
+            [
+              4.39,
+              1544
+            ],
+            [
+              4.64,
+              2432
+            ],
+            [
+              4.92,
+              0
+            ],
+            [
+              5.17,
+              2917
+            ],
+            [
+              5.42,
+              0
+            ],
+            [
+              5.68,
+              3452
+            ],
+            [
+              5.95,
+              0
+            ],
+            [
+              6.2,
+              3840
+            ],
+            [
+              6.45,
+              3840
+            ],
+            [
+              6.71,
+              0
+            ],
+            [
+              6.96,
+              3720
+            ],
+            [
+              7.23,
+              0
+            ],
+            [
+              7.48,
+              3507
+            ],
+            [
+              7.73,
+              3507
+            ],
+            [
+              7.98,
+              0
+            ],
+            [
+              8.24,
+              3252
+            ],
+            [
+              8.49,
+              0
+            ],
+            [
+              8.75,
+              3165
+            ],
+            [
+              9.01,
+              0
+            ],
+            [
+              9.27,
+              3378
+            ],
+            [
+              9.53,
+              0
+            ],
+            [
+              9.78,
+              0
+            ],
+            [
+              10.03,
+              3541
+            ],
+            [
+              10.28,
+              0
+            ],
+            [
+              10.54,
+              3829
+            ],
+            [
+              10.8,
+              0
+            ],
+            [
+              11.06,
+              0
+            ],
+            [
+              11.31,
+              4443
+            ],
+            [
+              11.59,
+              4443
+            ],
+            [
+              11.84,
+              0
+            ],
+            [
+              12.1,
+              5039
+            ],
+            [
+              12.37,
+              5039
+            ],
+            [
+              12.62,
+              0
+            ],
+            [
+              12.87,
+              5100
+            ],
+            [
+              13.12,
+              5100
+            ],
+            [
+              13.38,
+              0
+            ],
+            [
+              13.63,
+              0
+            ],
+            [
+              13.88,
+              4837
+            ],
+            [
+              14.15,
+              4837
+            ],
+            [
+              14.41,
+              0
+            ],
+            [
+              14.67,
+              3872
+            ],
+            [
+              14.93,
+              0
+            ],
+            [
+              15.18,
+              0
+            ],
+            [
+              15.43,
+              2484
+            ],
+            [
+              15.68,
+              1615
+            ],
+            [
+              15.93,
+              0
+            ],
+            [
+              16.19,
+              708
+            ],
+            [
+              16.44,
+              906
+            ],
+            [
+              16.7,
+              0
+            ],
+            [
+              16.96,
+              2357
+            ],
+            [
+              17.22,
+              0
+            ],
+            [
+              17.48,
+              2869
+            ],
+            [
+              17.73,
+              0
+            ],
+            [
+              17.99,
+              3461
+            ],
+            [
+              18.25,
+              0
+            ],
+            [
+              18.5,
+              3625
+            ],
+            [
+              18.75,
+              3625
+            ],
+            [
+              19.0,
+              0
+            ],
+            [
+              19.26,
+              3594
+            ],
+            [
+              19.51,
+              0
+            ],
+            [
+              19.77,
+              3431
+            ],
+            [
+              20.04,
+              0
+            ],
+            [
+              20.29,
+              0
+            ],
+            [
+              20.54,
+              3188
+            ],
+            [
+              20.8,
+              0
+            ],
+            [
+              21.05,
+              3111
+            ],
+            [
+              21.32,
+              0
+            ],
+            [
+              21.58,
+              3217
+            ],
+            [
+              21.83,
+              0
+            ],
+            [
+              22.09,
+              3548
+            ],
+            [
+              22.35,
+              3548
+            ],
+            [
+              22.6,
+              0
+            ],
+            [
+              22.86,
+              3682
+            ],
+            [
+              23.12,
+              0
+            ],
+            [
+              23.4,
+              4207
+            ],
+            [
+              23.66,
+              4207
+            ],
+            [
+              23.91,
+              0
+            ],
+            [
+              24.17,
+              4717
+            ],
+            [
+              24.43,
+              4717
+            ],
+            [
+              24.69,
+              0
+            ],
+            [
+              24.97,
+              4958
+            ],
+            [
+              25.24,
+              4958
+            ],
+            [
+              25.49,
+              0
+            ],
+            [
+              25.74,
+              0
+            ],
+            [
+              25.99,
+              4724
+            ],
+            [
+              26.24,
+              4724
+            ],
+            [
+              26.5,
+              0
+            ],
+            [
+              26.75,
+              3813
+            ],
+            [
+              27.01,
+              0
+            ],
+            [
+              27.26,
+              2396
+            ],
+            [
+              27.52,
+              0
+            ],
+            [
+              27.77,
+              0
+            ],
+            [
+              28.02,
+              840
+            ],
+            [
+              28.27,
+              717
+            ],
+            [
+              28.53,
+              0
+            ],
+            [
+              28.78,
+              0
+            ],
+            [
+              29.03,
+              2392
+            ],
+            [
+              29.3,
+              0
+            ],
+            [
+              29.55,
+              2871
+            ],
+            [
+              29.8,
+              0
+            ],
+            [
+              30.06,
+              3513
+            ],
+            [
+              30.32,
+              0
+            ],
+            [
+              30.58,
+              0
+            ],
+            [
+              30.83,
+              3765
+            ],
+            [
+              31.09,
+              0
+            ],
+            [
+              31.35,
+              3703
+            ],
+            [
+              31.6,
+              0
+            ],
+            [
+              31.85,
+              3463
+            ],
+            [
+              32.11,
+              3463
+            ],
+            [
+              32.39,
+              0
+            ],
+            [
+              32.64,
+              3174
+            ],
+            [
+              32.89,
+              0
+            ],
+            [
+              33.15,
+              3211
+            ],
+            [
+              33.4,
+              0
+            ],
+            [
+              33.68,
+              3263
+            ],
+            [
+              33.96,
+              0
+            ],
+            [
+              34.22,
+              3500
+            ],
+            [
+              34.48,
+              3500
+            ],
+            [
+              34.73,
+              0
+            ],
+            [
+              34.99,
+              3805
+            ],
+            [
+              35.24,
+              0
+            ],
+            [
+              35.5,
+              4197
+            ],
+            [
+              35.76,
+              4197
+            ],
+            [
+              36.01,
+              0
+            ],
+            [
+              36.27,
+              4867
+            ],
+            [
+              36.53,
+              4867
+            ],
+            [
+              36.78,
+              0
+            ],
+            [
+              37.03,
+              0
+            ],
+            [
+              37.29,
+              5255
+            ],
+            [
+              37.56,
+              0
+            ],
+            [
+              37.81,
+              0
+            ],
+            [
+              38.07,
+              4755
+            ],
+            [
+              38.33,
+              4755
+            ],
+            [
+              38.59,
+              0
+            ],
+            [
+              38.84,
+              3852
+            ],
+            [
+              39.11,
+              3852
+            ],
+            [
+              39.36,
+              0
+            ],
+            [
+              39.61,
+              2478
+            ],
+            [
+              39.87,
+              1629
+            ],
+            [
+              40.12,
+              1136
+            ],
+            [
+              40.38,
+              681
+            ],
+            [
+              40.63,
+              949
+            ],
+            [
+              40.89,
+              1657
+            ],
+            [
+              41.16,
+              2376
+            ],
+            [
+              41.41,
+              0
+            ],
+            [
+              41.66,
+              2988
+            ],
+            [
+              41.93,
+              0
+            ],
+            [
+              42.18,
+              3402
+            ],
+            [
+              42.43,
+              3402
+            ],
+            [
+              42.68,
+              0
+            ],
+            [
+              42.94,
+              3853
+            ],
+            [
+              43.2,
+              0
+            ],
+            [
+              43.45,
+              3686
+            ],
+            [
+              43.71,
+              3686
+            ],
+            [
+              43.98,
+              0
+            ],
+            [
+              44.23,
+              3584
+            ],
+            [
+              44.48,
+              0
+            ],
+            [
+              44.74,
+              3416
+            ],
+            [
+              45.01,
+              0
+            ],
+            [
+              45.26,
+              0
+            ],
+            [
+              45.52,
+              3410
+            ],
+            [
+              45.78,
+              0
+            ],
+            [
+              46.03,
+              3222
+            ],
+            [
+              46.29,
+              0
+            ],
+            [
+              46.54,
+              3680
+            ],
+            [
+              46.81,
+              0
+            ],
+            [
+              47.07,
+              0
+            ],
+            [
+              47.32,
+              3836
+            ],
+            [
+              47.58,
+              0
+            ],
+            [
+              47.83,
+              4269
+            ],
+            [
+              48.12,
+              4269
+            ],
+            [
+              48.39,
+              0
+            ],
+            [
+              48.65,
+              4916
+            ],
+            [
+              48.91,
+              4916
+            ],
+            [
+              49.17,
+              0
+            ],
+            [
+              49.42,
+              0
+            ],
+            [
+              49.68,
+              5144
+            ],
+            [
+              49.95,
+              0
+            ],
+            [
+              50.2,
+              0
+            ],
+            [
+              50.46,
+              4769
+            ],
+            [
+              50.73,
+              4769
+            ],
+            [
+              50.98,
+              0
+            ],
+            [
+              51.24,
+              3877
+            ],
+            [
+              51.5,
+              3877
+            ],
+            [
+              51.76,
+              0
+            ],
+            [
+              52.01,
+              2461
+            ],
+            [
+              52.26,
+              1696
+            ],
+            [
+              52.52,
+              1093
+            ],
+            [
+              52.77,
+              671
+            ],
+            [
+              53.02,
+              0
+            ],
+            [
+              53.27,
+              1656
+            ],
+            [
+              53.52,
+              0
+            ],
+            [
+              53.84,
+              2420
+            ],
+            [
+              54.12,
+              2420
+            ],
+            [
+              54.39,
+              3052
+            ],
+            [
+              54.64,
+              3421
+            ],
+            [
+              54.9,
+              0
+            ],
+            [
+              55.15,
+              3805
+            ],
+            [
+              55.4,
+              3805
+            ],
+            [
+              55.66,
+              0
+            ],
+            [
+              55.91,
+              3739
+            ],
+            [
+              56.17,
+              0
+            ],
+            [
+              56.42,
+              0
+            ],
+            [
+              56.68,
+              3580
+            ],
+            [
+              56.93,
+              0
+            ],
+            [
+              57.19,
+              3178
+            ],
+            [
+              57.44,
+              0
+            ],
+            [
+              57.7,
+              3445
+            ],
+            [
+              57.97,
+              0
+            ],
+            [
+              58.22,
+              0
+            ],
+            [
+              58.48,
+              3332
+            ],
+            [
+              58.74,
+              0
+            ],
+            [
+              59.0,
+              3555
+            ],
+            [
+              59.26,
+              0
+            ],
+            [
+              59.51,
+              3798
+            ],
+            [
+              59.76,
+              3798
+            ],
+            [
+              60.02,
+              0
+            ],
+            [
+              60.29,
+              4441
+            ],
+            [
+              60.55,
+              4441
+            ]
+          ],
+          "gold_freshness_seconds": 6.487,
+          "checks": [
+            {
+              "check": "Every Bronze row processed exactly once",
+              "expected": 345778,
+              "observed": 345778,
+              "passed": true
+            },
+            {
+              "check": "Bronze ids contiguous (latency attribution exact)",
+              "expected": 345778,
+              "observed": 345778,
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "share_of_capacity": 0.9,
+          "target_rows_per_second": 10243,
+          "files": 209,
+          "lines": 616276,
+          "achieved_arrival_rows_per_second": 10402,
+          "seconds": 60.49,
+          "latency_bronze_to_silver_ms": {
+            "n": 616276,
+            "min": 141.302,
+            "p50": 404.824,
+            "p95": 873.415,
+            "p99": 1553.083,
+            "max": 2059.181,
+            "mean": 443.9276
+          },
+          "drain_after_last_arrival_seconds": 0.469,
+          "backlog_rows": {
+            "n": 230,
+            "min": 0.0,
+            "p50": 3826.0,
+            "p95": 10156.0,
+            "p99": 13048.0,
+            "max": 18048.0,
+            "mean": 4693.1435
+          },
+          "backlog_first_quarter_mean": 6166,
+          "backlog_last_quarter_mean": 4714,
+          "backlog_series": [
+            [
+              0.0,
+              0
+            ],
+            [
+              0.26,
+              0
+            ],
+            [
+              0.51,
+              0
+            ],
+            [
+              0.76,
+              18048
+            ],
+            [
+              1.02,
+              18048
+            ],
+            [
+              1.28,
+              13048
+            ],
+            [
+              1.57,
+              13048
+            ],
+            [
+              1.83,
+              8048
+            ],
+            [
+              2.1,
+              11504
+            ],
+            [
+              2.35,
+              8818
+            ],
+            [
+              2.67,
+              12794
+            ],
+            [
+              2.93,
+              10711
+            ],
+            [
+              3.19,
+              10711
+            ],
+            [
+              3.45,
+              9163
+            ],
+            [
+              3.7,
+              13003
+            ],
+            [
+              3.96,
+              11723
+            ],
+            [
+              4.22,
+              6723
+            ],
+            [
+              4.5,
+              10230
+            ],
+            [
+              4.76,
+              8482
+            ],
+            [
+              5.02,
+              6647
+            ],
+            [
+              5.28,
+              6543
+            ],
+            [
+              5.54,
+              6543
+            ],
+            [
+              5.81,
+              5084
+            ],
+            [
+              6.08,
+              8913
+            ],
+            [
+              6.34,
+              8356
+            ],
+            [
+              6.61,
+              4443
+            ],
+            [
+              6.91,
+              5039
+            ],
+            [
+              7.18,
+              5039
+            ],
+            [
+              7.44,
+              5139
+            ],
+            [
+              7.71,
+              5139
+            ],
+            [
+              7.97,
+              4837
+            ],
+            [
+              8.24,
+              3872
+            ],
+            [
+              8.51,
+              3872
+            ],
+            [
+              8.77,
+              4099
+            ],
+            [
+              9.02,
+              2526
+            ],
+            [
+              9.29,
+              2454
+            ],
+            [
+              9.55,
+              2357
+            ],
+            [
+              9.81,
+              2869
+            ],
+            [
+              10.07,
+              3461
+            ],
+            [
+              10.34,
+              0
+            ],
+            [
+              10.6,
+              3625
+            ],
+            [
+              10.87,
+              3594
+            ],
+            [
+              11.14,
+              3594
+            ],
+            [
+              11.4,
+              3431
+            ],
+            [
+              11.65,
+              6299
+            ],
+            [
+              11.92,
+              3111
+            ],
+            [
+              12.2,
+              3217
+            ],
+            [
+              12.47,
+              3548
+            ],
+            [
+              12.73,
+              3548
+            ],
+            [
+              12.99,
+              3682
+            ],
+            [
+              13.24,
+              4207
+            ],
+            [
+              13.5,
+              4207
+            ],
+            [
+              13.76,
+              4717
+            ],
+            [
+              14.06,
+              4958
+            ],
+            [
+              14.32,
+              4958
+            ],
+            [
+              14.58,
+              4724
+            ],
+            [
+              14.85,
+              4724
+            ],
+            [
+              15.1,
+              3813
+            ],
+            [
+              15.36,
+              2396
+            ],
+            [
+              15.63,
+              2742
+            ],
+            [
+              15.89,
+              3176
+            ],
+            [
+              16.14,
+              4029
+            ],
+            [
+              16.39,
+              0
+            ],
+            [
+              16.64,
+              2871
+            ],
+            [
+              16.9,
+              3513
+            ],
+            [
+              17.18,
+              3765
+            ],
+            [
+              17.44,
+              7468
+            ],
+            [
+              17.7,
+              3703
+            ],
+            [
+              17.95,
+              3463
+            ],
+            [
+              18.22,
+              3174
+            ],
+            [
+              18.48,
+              3211
+            ],
+            [
+              18.74,
+              3211
+            ],
+            [
+              19.0,
+              3263
+            ],
+            [
+              19.25,
+              3500
+            ],
+            [
+              19.53,
+              3805
+            ],
+            [
+              19.79,
+              3805
+            ],
+            [
+              20.05,
+              4197
+            ],
+            [
+              20.31,
+              4867
+            ],
+            [
+              20.59,
+              4867
+            ],
+            [
+              20.84,
+              5255
+            ],
+            [
+              21.13,
+              5255
+            ],
+            [
+              21.39,
+              4755
+            ],
+            [
+              21.65,
+              3852
+            ],
+            [
+              21.9,
+              3852
+            ],
+            [
+              22.16,
+              2478
+            ],
+            [
+              22.42,
+              1983
+            ],
+            [
+              22.69,
+              2332
+            ],
+            [
+              22.94,
+              1657
+            ],
+            [
+              23.2,
+              2376
+            ],
+            [
+              23.45,
+              2988
+            ],
+            [
+              23.7,
+              3402
+            ],
+            [
+              23.96,
+              3853
+            ],
+            [
+              24.23,
+              3686
+            ],
+            [
+              24.5,
+              0
+            ],
+            [
+              24.76,
+              3584
+            ],
+            [
+              25.02,
+              3416
+            ],
+            [
+              25.27,
+              0
+            ],
+            [
+              25.53,
+              3410
+            ],
+            [
+              25.78,
+              3222
+            ],
+            [
+              26.03,
+              3680
+            ],
+            [
+              26.29,
+              3836
+            ],
+            [
+              26.54,
+              3836
+            ],
+            [
+              26.8,
+              4269
+            ],
+            [
+              27.07,
+              4269
+            ],
+            [
+              27.33,
+              4916
+            ],
+            [
+              27.59,
+              4916
+            ],
+            [
+              27.85,
+              5144
+            ],
+            [
+              28.14,
+              5144
+            ],
+            [
+              28.39,
+              4913
+            ],
+            [
+              28.67,
+              8790
+            ],
+            [
+              28.93,
+              6338
+            ],
+            [
+              29.18,
+              4157
+            ],
+            [
+              29.45,
+              2585
+            ],
+            [
+              29.74,
+              3288
+            ],
+            [
+              30.0,
+              2420
+            ],
+            [
+              30.26,
+              3052
+            ],
+            [
+              30.53,
+              3421
+            ],
+            [
+              30.8,
+              3805
+            ],
+            [
+              31.07,
+              3805
+            ],
+            [
+              31.34,
+              3739
+            ],
+            [
+              31.62,
+              3580
+            ],
+            [
+              31.89,
+              6758
+            ],
+            [
+              32.15,
+              6623
+            ],
+            [
+              32.42,
+              3445
+            ],
+            [
+              32.68,
+              3332
+            ],
+            [
+              32.93,
+              6887
+            ],
+            [
+              33.19,
+              7353
+            ],
+            [
+              33.44,
+              3798
+            ],
+            [
+              33.7,
+              3798
+            ],
+            [
+              33.96,
+              4441
+            ],
+            [
+              34.22,
+              9292
+            ],
+            [
+              34.48,
+              10055
+            ],
+            [
+              34.75,
+              5204
+            ],
+            [
+              35.04,
+              5204
+            ],
+            [
+              35.34,
+              4930
+            ],
+            [
+              35.61,
+              8771
+            ],
+            [
+              35.86,
+              6328
+            ],
+            [
+              36.14,
+              5330
+            ],
+            [
+              36.41,
+              3430
+            ],
+            [
+              36.66,
+              1593
+            ],
+            [
+              36.92,
+              2541
+            ],
+            [
+              37.18,
+              2875
+            ],
+            [
+              37.43,
+              3584
+            ],
+            [
+              37.68,
+              3826
+            ],
+            [
+              37.94,
+              3826
+            ],
+            [
+              38.2,
+              3962
+            ],
+            [
+              38.46,
+              3566
+            ],
+            [
+              38.73,
+              7004
+            ],
+            [
+              38.99,
+              3438
+            ],
+            [
+              39.26,
+              3318
+            ],
+            [
+              39.54,
+              3288
+            ],
+            [
+              39.8,
+              3561
+            ],
+            [
+              40.07,
+              0
+            ],
+            [
+              40.32,
+              3813
+            ],
+            [
+              40.6,
+              4292
+            ],
+            [
+              40.85,
+              4292
+            ],
+            [
+              41.11,
+              4915
+            ],
+            [
+              41.36,
+              0
+            ],
+            [
+              41.62,
+              5329
+            ],
+            [
+              41.87,
+              5329
+            ],
+            [
+              42.13,
+              4918
+            ],
+            [
+              42.39,
+              8791
+            ],
+            [
+              42.64,
+              3873
+            ],
+            [
+              42.9,
+              4121
+            ],
+            [
+              43.17,
+              3558
+            ],
+            [
+              43.43,
+              1711
+            ],
+            [
+              43.68,
+              2421
+            ],
+            [
+              43.93,
+              2421
+            ],
+            [
+              44.18,
+              2930
+            ],
+            [
+              44.44,
+              3435
+            ],
+            [
+              44.69,
+              3858
+            ],
+            [
+              44.95,
+              0
+            ],
+            [
+              45.2,
+              3801
+            ],
+            [
+              45.46,
+              3623
+            ],
+            [
+              45.72,
+              3623
+            ],
+            [
+              45.98,
+              3286
+            ],
+            [
+              46.25,
+              3233
+            ],
+            [
+              46.52,
+              3363
+            ],
+            [
+              46.79,
+              3591
+            ],
+            [
+              47.1,
+              7400
+            ],
+            [
+              47.36,
+              3809
+            ],
+            [
+              47.61,
+              4462
+            ],
+            [
+              47.87,
+              9462
+            ],
+            [
+              48.12,
+              5000
+            ],
+            [
+              48.39,
+              5000
+            ],
+            [
+              48.64,
+              5231
+            ],
+            [
+              48.94,
+              10156
+            ],
+            [
+              49.21,
+              5156
+            ],
+            [
+              49.46,
+              9037
+            ],
+            [
+              49.73,
+              6511
+            ],
+            [
+              49.99,
+              4239
+            ],
+            [
+              50.26,
+              3474
+            ],
+            [
+              50.52,
+              3296
+            ],
+            [
+              50.77,
+              2286
+            ],
+            [
+              51.04,
+              2999
+            ],
+            [
+              51.32,
+              6481
+            ],
+            [
+              51.57,
+              7262
+            ],
+            [
+              51.85,
+              3780
+            ],
+            [
+              52.12,
+              7671
+            ],
+            [
+              52.38,
+              7472
+            ],
+            [
+              52.63,
+              3581
+            ],
+            [
+              52.89,
+              3389
+            ],
+            [
+              53.16,
+              3350
+            ],
+            [
+              53.44,
+              3335
+            ],
+            [
+              53.69,
+              7070
+            ],
+            [
+              53.95,
+              3735
+            ],
+            [
+              54.22,
+              3732
+            ],
+            [
+              54.49,
+              8185
+            ],
+            [
+              54.75,
+              4453
+            ],
+            [
+              55.01,
+              4973
+            ],
+            [
+              55.3,
+              4973
+            ],
+            [
+              55.56,
+              5112
+            ],
+            [
+              55.84,
+              9927
+            ],
+            [
+              56.1,
+              4927
+            ],
+            [
+              56.37,
+              3829
+            ],
+            [
+              56.63,
+              6405
+            ],
+            [
+              56.88,
+              4165
+            ],
+            [
+              57.15,
+              2159
+            ],
+            [
+              57.41,
+              1618
+            ],
+            [
+              57.67,
+              2357
+            ],
+            [
+              57.93,
+              2741
+            ],
+            [
+              58.19,
+              3369
+            ],
+            [
+              58.45,
+              3739
+            ],
+            [
+              58.71,
+              3739
+            ],
+            [
+              58.96,
+              3686
+            ],
+            [
+              59.23,
+              3375
+            ],
+            [
+              59.48,
+              3375
+            ],
+            [
+              59.74,
+              3116
+            ],
+            [
+              60.01,
+              6308
+            ],
+            [
+              60.27,
+              3052
+            ]
+          ],
+          "gold_freshness_seconds": null,
+          "checks": [
+            {
+              "check": "Every Bronze row processed exactly once",
+              "expected": 616276,
+              "observed": 616276,
+              "passed": true
+            },
+            {
+              "check": "Bronze ids contiguous (latency attribution exact)",
+              "expected": 616276,
+              "observed": 616276,
+              "passed": true
+            },
+            {
+              "check": "Processor runs cover Bronze without gaps or overlaps",
+              "expected": 0,
+              "observed": 0,
+              "passed": true
+            }
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "check": "Every Bronze row processed exactly once",
+          "expected": 345778,
+          "observed": 345778,
+          "passed": true
+        },
+        {
+          "check": "Bronze ids contiguous (latency attribution exact)",
+          "expected": 345778,
+          "observed": 345778,
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        },
+        {
+          "check": "Every Bronze row processed exactly once",
+          "expected": 616276,
+          "observed": 616276,
+          "passed": true
+        },
+        {
+          "check": "Bronze ids contiguous (latency attribution exact)",
+          "expected": 616276,
+          "observed": 616276,
+          "passed": true
+        },
+        {
+          "check": "Processor runs cover Bronze without gaps or overlaps",
+          "expected": 0,
+          "observed": 0,
+          "passed": true
+        }
+      ],
+      "experiment_seconds": 130.09
+    }
+  },
+  "headline": {
+    "lines": 1003875,
+    "continuous_events_per_second": 7368,
+    "continuous_latency_p95_ms": 724.3384,
+    "backfill_best_rows_per_second": 11756,
+    "backfill_best_chunk": 20000,
+    "backfill_speedup_vs_baseline": 2.54,
+    "validator_speedup": 2.45,
+    "load_share": 0.5,
+    "load_latency_ms": {
+      "p50": 334.369,
+      "p95": 500.062,
+      "p99": 1408.549
+    },
+    "gold_freshness_seconds": 6.487,
+    "recovery_restart_to_drained_seconds": 52.864,
+    "dbt_build_seconds": 11.86,
+    "sql_speedups_p50": [
+      287.8,
+      2487.5,
+      21.9
+    ],
+    "ingest_copy_speedup": 8.2,
+    "checks_passed": 61,
+    "checks_total": 61
+  },
+  "phase": null,
+  "bench_process_max_rss_mb": 2372.9
+}

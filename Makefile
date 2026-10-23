@@ -8,7 +8,7 @@ SEED ?= 7
 
 .PHONY: setup up down generate run status ui test test-unit test-integration lint clean \
 	hunt cases evaluate operator \
-	stream-up stream-down stream-init stream-replay stream-silver stream-transform stream-status test-stream \
+	stream-up stream-down stream-teardown stream-init stream-replay stream-silver stream-transform stream-status test-stream \
 	lake-up lake-down lake-publish lake-transform lake-compare lake-status lake-maintain test-lake \
 	airflow-up airflow-password superset-up superset-bootstrap \
 	chaos chaos-runs replay-inspect replay-preview replay-list lineage observe-up observe-down metrics bench bench-list
@@ -100,6 +100,9 @@ stream-up:        ## fetch pinned jars/plugins (checksummed), build Connect, sta
 
 stream-down:
 	docker compose --profile stream down
+
+stream-teardown:  ## remove connectors, replication slots, topics (run before a long stop: an idle slot keeps WAL)
+	.venv/bin/signalflow stream teardown
 
 stream-init:      ## stream database, ERP, topics, Debezium connectors (idempotent)
 	.venv/bin/signalflow stream init --data $(DATA)

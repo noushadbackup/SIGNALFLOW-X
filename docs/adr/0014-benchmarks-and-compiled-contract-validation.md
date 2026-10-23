@@ -48,7 +48,7 @@ Python, in validation.
   does.
 
 ## Consequences
-* On the XS workload the processor's throughput roughly doubled (backfill, same chunk size). Measured figures for all
+* The processor's backfill throughput rose 2.2× (XS) to 2.55× (S) at the same chunk size. Measured figures for all
   workloads are in the Phase 6 report and the Benchmark Lab; they belong to the machine that recorded them.
 * After the change, the processor's largest costs are its own Python code (building rows, hashing, lateness
   classification) and the Postgres round trips. The next step would be a second processor, which needs a partitioned

@@ -97,6 +97,7 @@ make stream-silver        # terminal 1: Spark Structured Streaming job (Ctrl-C a
 make stream-replay        # terminal 2: telecom → Kafka, manufacturing → ERP outbox → Debezium → Kafka
 make stream-status        # connectors, slot lag, bronze/silver counts, committed batches, skipped replays
 make stream-transform     # the same dbt project on the streaming database
+make stream-teardown      # before stopping the stream profile for long: a stopped connector's slot keeps WAL
 make test-stream          # 5 acceptance tests incl. SIGKILL of the Spark job mid-stream (~6 min)
 ```
 
@@ -119,7 +120,7 @@ make superset-up && make superset-bootstrap   # Superset 5.0 on 127.0.0.1:58088,
 ## Benchmarks and demos
 
 ```bash
-make bench WORKLOAD=S     # ~6 min: every experiment on ~142k arrival lines in signalflow_bench* databases
+make bench WORKLOAD=S     # ~5 min: every experiment on ~142k arrival lines in signalflow_bench* databases
 make bench-list           # recorded runs; the control tower's Benchmark Lab shows them in detail
 scripts/demo/demo1_live_operations.sh                 # Demo 1: live feed into a fresh database
 ANALYST=nadia scripts/demo/demo2_revenue_leak.sh       # Demo 2: telecom leak from detection to decision

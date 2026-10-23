@@ -126,8 +126,9 @@ def platform_assurance() -> None:
                       f"last: {c.last_run} · {fmt_ts(c.last_at)}" if int(c.runs) else "no incident run yet"))
     if data.table_exists("ops.replay_runs"):
         r = q(data.REPLAY_SUMMARY).iloc[0]
-        items.append(("Time Machine replays", fmt_int(r.replays),
-                      f"{fmt_int(r.promoted)} promoted · last {r.last_status}" if int(r.replays) else "none yet"))
+        items.append(("Time Machine replays here", fmt_int(r.replays),
+                      f"{fmt_int(r.promoted)} promoted · last {r.last_status}" if int(r.replays)
+                      else "none in this database"))
     if data.table_exists("ops.benchmark_runs"):
         b = q(data.BENCH_SUMMARY)
         if b.empty:
@@ -138,8 +139,9 @@ def platform_assurance() -> None:
                           f"{fmt_int(row.lines)} lines · {row.checks_passed}/{row.checks_total} checks passed"))
     if items:
         tiles(items)
-        st.caption("Alerts are evaluated by `signalflow alerts` and the exporter; incidents and replays run in the lab "
-                   "database; benchmark figures belong to the machine that recorded them (Benchmark Lab).")
+        st.caption("Alerts are evaluated by `signalflow alerts` and the exporter. Chaos Lab reports are kept here; a "
+                   "replay is recorded in the database it ran on (the Time Machine page lists the lab's). Benchmark "
+                   "figures belong to the machine that recorded them (Benchmark Lab).")
 
 
 def page_telecom() -> None:

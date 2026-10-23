@@ -59,7 +59,7 @@ reliability tooling, observability and benchmarks all read the same committed st
    while the outbox moved, and Postgres kept 6.5 GB of WAL for it. Both connectors now emit heartbeats on a table in
    their own publication, the exporter reports retained WAL per slot, and Prometheus alerts above 1 GiB.
 4. **The profile pointed at validation.** The Silver processor spent about two thirds of its time in jsonschema.
-   Compiling the contracts doubled its throughput; jsonschema still decides every rejection, and a test proves both
+   Compiling the contracts made it 2.2 to 2.6 times faster across four workload sizes; jsonschema still decides every rejection, and a test proves both
    validators agree on 1,930 crafted variants (ADR-0014).
 5. **A fixed number in a test.** The lake test asserted `PASS=100` dbt nodes; Phase 5 added models and CI failed.
    The test now compares the lite and lake builds with each other, which is what it meant.
