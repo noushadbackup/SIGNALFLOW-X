@@ -156,7 +156,7 @@ erDiagram
 | `mart_mfg_production_daily` | business date × factory × category | composite | includes disruption days |
 | `mart_telecom_usage_daily` | business date × serving region × usage type | composite | |
 
-## 6. Full-profile design *(runs today except Prometheus/Grafana, Phase 5)*
+## 6. Full-profile design
 
 ```mermaid
 flowchart LR
@@ -170,8 +170,8 @@ flowchart LR
   TR --> ST["Streamlit control tower"]
   AF["Airflow"] -.schedules.-> DBT
   AF -.schedules.-> PG
-  PR["Prometheus"] --> GF["Grafana"]
-  K & SS & TR -.metrics.-> PR
+  EX["exporter (reads Postgres)"] --> PR["Prometheus"] --> GF["Grafana"]
+  PG -.scrape-time queries.-> EX
 ```
 
 ### Revenue assurance (Phase 4)
@@ -197,6 +197,6 @@ Key decisions are recorded as ADRs in [`docs/adr/`](adr).
 | R6 | Synthetic data too regular to be credible | Medium | Medium | Dhaka hourly demand curve, regional weights, segment behaviour, Fri/Sat effects, supply disruptions |
 | R7 | Ground truth leaks into detection logic | Low | High | truth written outside pipeline paths; source-scan test; detection rules reviewed against ledger fields |
 | R8 | Docker Hub rate limits during setup | Medium | Low | compose file uses `mirror.gcr.io` defaults overridable via env |
-| R10 | Debezium replication slot pins WAL (idle ERP, or a slot left behind) | Medium | High (disk fills) | heartbeat action query advances the slot; teardown drops slots and resets connector offsets; slot lag shown by `stream status` (alerting in Phase 5) |
+| R10 | Debezium replication slot pins WAL (idle ERP, or a slot left behind) | Medium | High (disk fills) | heartbeat action query advances the slot; teardown drops slots and resets connector offsets; slot lag shown by `stream status`. **Happened in Phase 6:** the master-data connector had no heartbeat and its slot held 6.5 GB of WAL. Both connectors now write a heartbeat row in their own publication; `signalflow_replication_slot_retained_wal_bytes` and the `SignalFlowReplicationSlotWalRetention` alert (> 1 GiB for 10 min) watch it |
 | R11 | Lake mirrors two databases at once (identity values overlap) | Low | High | publisher refuses a table whose snapshots record another source database; tests use separate namespace prefixes |
 | R9 | Overclaiming (exactly-once, "production ready") | Medium | High (credibility) | every guarantee in docs links to the test that demonstrates it |

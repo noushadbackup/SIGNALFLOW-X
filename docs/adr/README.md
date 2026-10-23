@@ -15,5 +15,6 @@
 | [0011](0011-chaos-lab-disposable-lab-database.md) | Chaos Lab: predefined incidents in a disposable lab database, verified against a clean run | Accepted |
 | [0012](0012-time-machine-replay-from-bronze.md) | Data Time Machine: replay a window from Bronze into an isolated preview, promote atomically, undo exactly | Accepted |
 | [0013](0013-derived-table-lineage-and-scrape-time-metrics.md) | Lineage derived from code and artifacts at table level; metrics read from Postgres at scrape time | Accepted |
+| [0014](0014-benchmarks-and-compiled-contract-validation.md) | Benchmarks run the real pipeline and check their own results; contracts are also compiled | Accepted |
 
 Format: Context → Decision → Consequences → Alternatives considered.

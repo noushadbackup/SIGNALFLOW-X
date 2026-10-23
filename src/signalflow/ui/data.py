@@ -165,6 +165,36 @@ SELECT run_id, as_of ->> 'telecom' AS telecom_clock, as_of ->> 'mfg' AS mfg_cloc
 FROM assurance.hunter_runs ORDER BY run_id DESC LIMIT 1
 """
 
+# Overview: one line per operator tool. Each query is only run when its table exists (Phase 5/6 migrations).
+ALERTS_SUMMARY = """
+SELECT count(*) FILTER (WHERE status = 'FIRING') AS firing,
+       count(*) FILTER (WHERE status = 'FIRING' AND severity = 'CRITICAL') AS critical,
+       max(last_seen) AS last_evaluated
+FROM ops.alerts
+"""
+
+CHAOS_SUMMARY = """
+SELECT count(*) AS runs, count(*) FILTER (WHERE status = 'PASSED') AS passed,
+       (array_agg(incident || ' ' || lower(status) ORDER BY started_at DESC))[1] AS last_run,
+       max(started_at) AS last_at
+FROM ops.chaos_runs
+"""
+
+REPLAY_SUMMARY = """
+SELECT count(*) AS replays, count(*) FILTER (WHERE status = 'PROMOTED') AS promoted,
+       (array_agg(lower(status) ORDER BY created_at DESC))[1] AS last_status, max(created_at) AS last_at
+FROM ops.replay_runs
+"""
+
+BENCH_SUMMARY = """
+SELECT workload, finished_at, (results -> 'headline' ->> 'lines')::bigint AS lines,
+       (results -> 'headline' ->> 'backfill_best_rows_per_second')::numeric AS rows_per_second,
+       (results -> 'headline' ->> 'checks_passed')::int AS checks_passed,
+       (results -> 'headline' ->> 'checks_total')::int AS checks_total
+FROM ops.benchmark_runs WHERE status = 'COMPLETED' ORDER BY (results -> 'headline' ->> 'lines')::bigint DESC,
+     finished_at DESC LIMIT 1
+"""
+
 LEAK_TOTALS = """
 SELECT count(*) FILTER (WHERE status = 'PENDING') AS pending,
        count(*) FILTER (WHERE status = 'SUSPICIOUS') AS suspicious,

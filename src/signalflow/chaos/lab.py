@@ -36,6 +36,7 @@ log = get_logger(__name__)
 DBT_SELECT = ["+mart_telecom_revenue_daily", "+mart_inventory_position"]
 PROTECTED_ENV = ("PGDATABASE", "SIGNALFLOW_STREAM_DB", "SIGNALFLOW_ERP_DB", "SIGNALFLOW_CATALOG_DB",
                  "SIGNALFLOW_LAKE_SOURCE_DB")
+ORIGINAL_PGDATABASE_ENV = "SIGNALFLOW_ORIGINAL_PGDATABASE"
 PROTECTED_NAMES = {"postgres", "template0", "template1", "signalflow", "signalflow_stream", "signalflow_erp",
                    "signalflow_catalog", "signalflow_airflow", "signalflow_superset"}
 
@@ -66,10 +67,16 @@ class LabDataset:
         return self.directory
 
 
+def protected_databases() -> set[str]:
+    env = dict(os.environ)
+    if env.get(ORIGINAL_PGDATABASE_ENV):  # the CLI's --database replaced PGDATABASE; the original stays protected
+        env["PGDATABASE"] = env[ORIGINAL_PGDATABASE_ENV]
+    return PROTECTED_NAMES | {env[e] for e in PROTECTED_ENV if env.get(e)}
+
+
 def lab_database_name(name: str | None = None) -> str:
     name = name or os.environ.get("SIGNALFLOW_LAB_DB", "signalflow_lab")
-    protected = PROTECTED_NAMES | {os.environ[e] for e in PROTECTED_ENV if os.environ.get(e)}
-    if name in protected or "lab" not in name or not name.replace("_", "").isalnum():
+    if name in protected_databases() or "lab" not in name or not name.replace("_", "").isalnum():
         raise ValueError(f"refusing to use {name!r} as the Chaos Lab database: it must contain 'lab' and must not "
                          "be the demo, streaming, ERP, catalog, Airflow or Superset database")
     return name

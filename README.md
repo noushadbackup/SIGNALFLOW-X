@@ -6,6 +6,8 @@ replay-safe processing, event-time correctness, reconciliation and tested failur
 
 > All data is synthetic. No real company, customer or phone-number data is used.
 
+![SignalFlow X architecture](docs/assets/architecture.svg)
+
 ## Status
 
 | Phase | Scope | State |
@@ -16,13 +18,15 @@ replay-safe processing, event-time correctness, reconciliation and tested failur
 | 3 | Iceberg on S3-compatible storage, Trino, dbt-trino, lite-vs-lake differential test, Airflow, Superset | ✅ done — [report](docs/reports/PHASE3_REPORT.md) |
 | 4 | Revenue Leak Hunter (10 SQL rules, event-time case lifecycle, analyst actions with roles and audit), digital twin pages | ✅ done — [report](docs/reports/PHASE4_REPORT.md) |
 | 5 | Chaos Lab (incidents A–E), Data Time Machine (replay from Bronze, promote, undo, Iceberg rollback), table-level lineage and impact, Prometheus + Grafana | ✅ done — [report](docs/reports/PHASE5_REPORT.md) |
-| 6 | Integrated control tower, benchmarks, demo scripts, interview notes | planned — see [plan](docs/IMPLEMENTATION_PLAN.md) |
+| 6 | Benchmark suite (4 workload sizes, baseline vs optimized, latency under load, recovery), compiled contract validation, Benchmark Lab, demo scripts, interview guide | ✅ done — [report](docs/reports/PHASE6_REPORT.md) |
 
 ## Documentation
 
 * [Requirements](docs/REQUIREMENTS.md) · [Architecture & risks](docs/ARCHITECTURE.md) ·
   [Data contracts](docs/DATA_CONTRACTS.md) · [ADRs](docs/adr/README.md) ·
   [Implementation plan](docs/IMPLEMENTATION_PLAN.md) · [Test strategy](docs/TEST_STRATEGY.md)
+* [Demonstration guide](docs/DEMO.md) (three scripted demos) · [Interview guide](docs/INTERVIEW_GUIDE.md) (design
+  choices, trade-offs, likely questions) · [Benchmark results](docs/reports/PHASE6_REPORT.md#headline-results)
 
 ## Repository layout
 
@@ -39,14 +43,20 @@ src/signalflow/
   assurance/               Revenue Leak Hunter: rule catalogue, hunter (case lifecycle), analyst case actions
   security.py              operators, roles, scrypt password hashes, permission checks, audit log
   erp.py                   simulated ERP: business row + outbox row per transaction
-  ui/                      Streamlit control tower (overview, digital twins, Leak Hunter, observatory, lake)
+  chaos/, timemachine/     Chaos Lab incidents and lab database; replay from Bronze, promote, undo, Iceberg sync
+  lineage/, observability/ table-level lineage and impact; Prometheus exporter and diagnostic alerts
+  ui/                      Streamlit control tower (overview, digital twins, Leak Hunter, observatory, Chaos Lab,
+                           Time Machine, lake, lineage, Benchmark Lab)
 src/signalflow_eval/       offline evaluation against the generator's scenario ledger (never imported by detection)
+src/signalflow_bench/      benchmark suite: real pipeline, several workload sizes, every result checked
   pipeline.py, cli.py      orchestration steps and the `signalflow` command
 sql/migrations/, sql/erp/  Postgres DDL (bronze / silver / ops / ref / assurance; ERP schema)
 sql/assurance/            the ten Leak Hunter rules, one reviewed SQL file each
 docker/                    Connect + Debezium, Spark, Airflow and Superset images; Trino catalog; SeaweedFS
 airflow/dags/              lakehouse refresh, maintenance and leak-hunter DAGs (thin wrappers around the CLI)
 scripts/fetch_artifacts.sh pinned, checksum-verified JVM artifacts
+scripts/demo/              the three demonstration scripts (docs/DEMO.md)
+benchmarks/results/        recorded benchmark runs (JSON, one file per run)
 dbt/                       staging views, dimensions (incl. SCD2), facts, marts, data tests
 tests/unit, tests/integration, tests/stream, tests/lake
 docs/                      requirements, architecture, contracts, ADRs, plan, reports
@@ -106,6 +116,20 @@ make airflow-up           # Airflow 3.1 on 127.0.0.1:58081 (user admin; `make ai
 make superset-up && make superset-bootstrap   # Superset 5.0 on 127.0.0.1:58088, dashboard created from code
 ```
 
+## Benchmarks and demos
+
+```bash
+make bench WORKLOAD=S     # ~6 min: every experiment on ~142k arrival lines in signalflow_bench* databases
+make bench-list           # recorded runs; the control tower's Benchmark Lab shows them in detail
+scripts/demo/demo1_live_operations.sh                 # Demo 1: live feed into a fresh database
+ANALYST=nadia scripts/demo/demo2_revenue_leak.sh       # Demo 2: telecom leak from detection to decision
+OPERATOR=tanvir scripts/demo/demo3_failure_recovery.sh # Demo 3: SIGKILL, late surge, replay and repair
+```
+
+Workloads XS, S, M and L run the real pipeline and check every result against the generator's ledger. Measured
+results, the machine they come from and the bottleneck analysis are in the
+[Phase 6 report](docs/reports/PHASE6_REPORT.md).
+
 ## Guarantees and where they are tested
 
 | Claim | Test |
@@ -135,9 +159,13 @@ make superset-up && make superset-bootstrap   # Superset 5.0 on 127.0.0.1:58088,
 | A replay is never promoted over a stale preview or while a processor runs | `test_promotion_is_refused_when_silver_changed_after_the_preview_or_a_processor_runs` |
 | The Iceberg copies follow a promotion and roll back with `rollback_to_snapshot` | `tests/lake/test_phase5_timemachine_lake.py` |
 | Lineage impact is profile-aware and never claims column-level lineage | `tests/unit/test_lineage.py` |
+| Compiled and reference (jsonschema) validation decide identically; jsonschema decides every rejection | `test_compiled_and_reference_validators_decide_identically`, `test_valid_events_pass_contracts_and_invalid_fail_as_expected[*]` |
+| Every benchmark run checks its results (Silver ids, duplicates, quarantine, Gold to the poisha, stock, reconciliation, recovery) and drops its databases | `tests/integration/test_phase6_bench.py`; checks recorded per run in `ops.benchmark_runs` |
 
 Not claimed: end-to-end exactly-once across systems (Kafka → Spark is at-least-once; the Postgres result is
 effectively-once, see ADR-0008), production readiness of a single-node, unreplicated Kafka deployment, sub-minute
 lake freshness (the lake is refreshed by Airflow every 30 minutes, ADR-0009), or authentication on Trino (local stack,
 loopback only). Leak Hunter exposure figures are rule-based estimates of money at risk, not audited losses.
-Lineage is table-level, not column-level. A replay cannot recover records Bronze never received.
+Lineage is table-level, not column-level. A replay cannot recover records Bronze never received. Benchmark figures
+describe the machine that recorded them; the streaming and lake paths are tested for correctness, not benchmarked.
+The optional AI investigator was not built.

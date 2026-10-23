@@ -149,19 +149,35 @@ def run_worker(database: str, chunk_size: int, log_path: str, validator: str = "
     env = {**os.environ, "PGDATABASE": database, "SIGNALFLOW_VALIDATOR": validator}
     pg0 = container_cpu_seconds()
     t0 = time.perf_counter()
+    peak_kb = 0
     with open(log_path, "a") as log:
         proc = subprocess.Popen([sys.executable, "-m", "signalflow.chaos.worker", "--chunk-size", str(chunk_size)],
                                 env=env, stdout=log, stderr=log)
-        _, status, usage = os.wait4(proc.pid, 0)
+        while True:
+            # Peak RSS from /proc: ru_maxrss would include the parent's memory, inherited across fork and exec.
+            peak_kb = max(peak_kb, _vm_hwm_kb(proc.pid))
+            pid, status, usage = os.wait4(proc.pid, os.WNOHANG)
+            if pid:
+                break
+            time.sleep(0.1)
     wall = time.perf_counter() - t0
     proc.returncode = os.waitstatus_to_exitcode(status)
     pg1 = container_cpu_seconds()
     return {"returncode": proc.returncode, "seconds": round(wall, 3),
             "worker_cpu_seconds": round(usage.ru_utime + usage.ru_stime, 3),
             "worker_cores": round((usage.ru_utime + usage.ru_stime) / wall, 2) if wall else None,
-            "worker_max_rss_mb": round(usage.ru_maxrss / 1024, 1),
+            "worker_peak_rss_mb": round(peak_kb / 1024, 1) if peak_kb else None,
             "postgres_cpu_seconds": None if pg0 is None or pg1 is None else round(pg1 - pg0, 3),
             "postgres_cores": None if pg0 is None or pg1 is None or not wall else round((pg1 - pg0) / wall, 2)}
+
+
+def _vm_hwm_kb(pid: int) -> int:
+    """Peak resident set size of a live process since its last exec (Linux /proc), 0 if unavailable."""
+    try:
+        with open(f"/proc/{pid}/status") as fh:
+            return next((int(line.split()[1]) for line in fh if line.startswith("VmHWM:")), 0)
+    except (OSError, ValueError):
+        return 0
 
 
 def max_rss_mb() -> float:

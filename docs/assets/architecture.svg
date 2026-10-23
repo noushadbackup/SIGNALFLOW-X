@@ -1,0 +1,219 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1260 720" width="1260" height="720" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-labelledby="t d">
+  <title id="t">SignalFlow X architecture</title>
+  <desc id="d">Sources feed Kafka and Debezium (stream profile) or arrival files (lite profile). Spark or the Python processor validate against shared contracts into Postgres Bronze, Silver and Gold. Gold is served to the control tower; committed state is published to Iceberg and rebuilt by dbt on Trino for Superset. Leak Hunter, Chaos Lab, Time Machine, lineage, benchmarks and Airflow work on the same committed state.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#52514e"/>
+    </marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#898781"/>
+    </marker>
+    <style>
+      .bg { fill: #fcfcfb; }
+      .box { fill: #ffffff; stroke: #c9c7bf; stroke-width: 1.2; }
+      .pg { fill: #f2f6fc; stroke: #2a78d6; stroke-width: 1.4; }
+      .layer { fill: #ffffff; stroke: #9dbfe9; stroke-width: 1; }
+      .tool { fill: #f7f6f2; stroke: #c9c7bf; stroke-width: 1; }
+      .truth { fill: #fff8ec; stroke: #eda100; stroke-width: 1.2; stroke-dasharray: 5 4; }
+      .h { font-size: 11px; font-weight: 600; fill: #898781; letter-spacing: .08em; }
+      .t { font-size: 13px; font-weight: 600; fill: #0b0b0b; }
+      .s { font-size: 11px; fill: #52514e; }
+      .title { font-size: 20px; font-weight: 700; fill: #0b0b0b; }
+      .sub { font-size: 12.5px; fill: #52514e; }
+      .flow { stroke: #52514e; stroke-width: 1.5; fill: none; marker-end: url(#a); }
+      .halo { stroke: #fcfcfb; stroke-width: 6; fill: none; }
+      .ctl { stroke: #898781; stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; marker-end: url(#ag); }
+      .chip { font-size: 9.5px; font-weight: 600; letter-spacing: .05em; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1260" height="720" rx="14"/>
+  <text class="title" x="32" y="40">SignalFlow X</text>
+  <text class="sub" x="32" y="61">Two profiles, one design: the lite and stream paths share the contracts, the Silver rules and the dbt project.</text>
+
+  <!-- column headers -->
+  <text class="h" x="32" y="96">SOURCES (SYNTHETIC)</text>
+  <text class="h" x="276" y="96">TRANSPORT</text>
+  <text class="h" x="512" y="96">PROCESSING</text>
+  <text class="h" x="776" y="96">POSTGRES 16 (REFERENCE)</text>
+  <text class="h" x="1022" y="96">LAKE AND SERVING</text>
+
+  <!-- sources -->
+  <rect class="box" x="32" y="110" width="214" height="58" rx="8"/>
+  <text class="t" x="44" y="133">Telecom OCS and billing</text>
+  <text class="s" x="44" y="152">recharges, usage, bundles, charges</text>
+
+  <rect class="box" x="32" y="186" width="214" height="70" rx="8"/>
+  <text class="t" x="44" y="209">ERP, WMS, MES</text>
+  <text class="s" x="44" y="228">business row + outbox row</text>
+  <text class="s" x="44" y="244">in one transaction</text>
+
+  <rect class="box" x="32" y="276" width="214" height="62" rx="8"/>
+  <text class="t" x="44" y="299">Arrival files (JSONL)</text>
+  <text class="s" x="44" y="318">seeded generator, both domains</text>
+
+  <rect class="truth" x="32" y="360" width="214" height="62" rx="8"/>
+  <text class="t" x="44" y="383">Truth ledger</text>
+  <text class="s" x="44" y="402">what was injected; never read</text>
+  <text class="s" x="44" y="416">by the pipeline</text>
+
+  <!-- transport -->
+  <rect class="box" x="276" y="110" width="206" height="70" rx="8"/>
+  <text class="t" x="288" y="133">Kafka 4.1 (KRaft)</text>
+  <text class="s" x="288" y="152">topic per event type and</text>
+  <text class="s" x="288" y="167">major version, keyed by event_id</text>
+
+  <rect class="box" x="276" y="196" width="206" height="60" rx="8"/>
+  <text class="t" x="288" y="219">Debezium 3.6</text>
+  <text class="s" x="288" y="238">outbox router, master-data CDC</text>
+
+  <rect class="box" x="276" y="276" width="206" height="62" rx="8"/>
+  <text class="t" x="288" y="299">File loader</text>
+  <text class="s" x="288" y="318">COPY into Bronze, never rejects</text>
+
+  <!-- processing -->
+  <rect class="box" x="512" y="110" width="224" height="84" rx="8"/>
+  <text class="t" x="524" y="133">Spark Streaming</text>
+  <text class="s" x="524" y="152">validates on executors; Bronze and</text>
+  <text class="s" x="524" y="167">Silver in one Postgres transaction</text>
+  <text class="s" x="524" y="182">with a batch-id marker</text>
+
+  <rect class="box" x="512" y="208" width="224" height="52" rx="8" fill="#fbfaf7"/>
+  <text class="t" x="524" y="230">Contracts and Silver rules</text>
+  <text class="s" x="524" y="248">JSON Schema, shared by both paths</text>
+
+  <rect class="box" x="512" y="276" width="224" height="62" rx="8"/>
+  <text class="t" x="524" y="299">Python processor</text>
+  <text class="s" x="524" y="318">reads Bronze in micro-batches;</text>
+  <text class="s" x="524" y="332">checkpoint moves in the same txn</text>
+
+  <!-- postgres -->
+  <rect class="pg" x="768" y="106" width="222" height="318" rx="10"/>
+  <rect class="layer" x="782" y="118" width="194" height="50" rx="7"/>
+  <text class="t" x="794" y="139">Bronze</text>
+  <text class="s" x="794" y="157">every line, byte for byte</text>
+  <rect class="layer" x="782" y="176" width="194" height="50" rx="7"/>
+  <text class="t" x="794" y="197">Silver</text>
+  <text class="s" x="794" y="215">valid, unique, arrival class</text>
+  <rect class="layer" x="782" y="234" width="194" height="50" rx="7"/>
+  <text class="t" x="794" y="255">ops and quarantine</text>
+  <text class="s" x="794" y="273">duplicates, late, runs, alerts</text>
+  <rect class="layer" x="782" y="292" width="194" height="50" rx="7"/>
+  <text class="t" x="794" y="313">Gold (dbt)</text>
+  <text class="s" x="794" y="331">facts, SCD2, marts, KPI status</text>
+  <rect class="layer" x="782" y="350" width="194" height="62" rx="7"/>
+  <text class="t" x="794" y="371">Assurance</text>
+  <text class="s" x="794" y="389">cases, history, operators,</text>
+  <text class="s" x="794" y="404">audit log</text>
+
+  <!-- lake and serving -->
+  <rect class="box" x="1022" y="110" width="206" height="70" rx="8"/>
+  <text class="t" x="1034" y="133">Iceberg 1.10</text>
+  <text class="s" x="1034" y="152">on SeaweedFS (S3 API), built</text>
+  <text class="s" x="1034" y="167">from committed Postgres state</text>
+
+  <rect class="box" x="1022" y="194" width="206" height="56" rx="8"/>
+  <text class="t" x="1034" y="217">Trino 478</text>
+  <text class="s" x="1034" y="236">dbt-trino, same project, compared</text>
+
+  <rect class="box" x="1022" y="264" width="206" height="40" rx="8"/>
+  <text class="t" x="1034" y="289">Superset 5.0</text>
+
+  <rect class="box" x="1022" y="318" width="206" height="46" rx="8" style="stroke:#2a78d6;stroke-width:1.6"/>
+  <text class="t" x="1034" y="338">Streamlit control tower</text>
+  <text class="s" x="1034" y="354">live queries, sign-in, roles</text>
+
+  <rect class="box" x="1022" y="378" width="206" height="46" rx="8"/>
+  <text class="t" x="1034" y="398">Prometheus + Grafana</text>
+  <text class="s" x="1034" y="414">exporter reads Postgres</text>
+
+  <!-- profile chips -->
+  <g class="chip">
+    <rect x="422" y="116" width="52" height="16" rx="8" fill="#e8f0fb"/><text x="430" y="128" fill="#2a78d6">STREAM</text>
+    <rect x="422" y="202" width="52" height="16" rx="8" fill="#e8f0fb"/><text x="430" y="214" fill="#2a78d6">STREAM</text>
+    <rect x="676" y="116" width="52" height="16" rx="8" fill="#e8f0fb"/><text x="684" y="128" fill="#2a78d6">STREAM</text>
+    <rect x="438" y="282" width="36" height="16" rx="8" fill="#e6f6ef"/><text x="445" y="294" fill="#0f7d56">LITE</text>
+    <rect x="692" y="282" width="36" height="16" rx="8" fill="#e6f6ef"/><text x="699" y="294" fill="#0f7d56">LITE</text>
+    <rect x="1182" y="116" width="38" height="16" rx="8" fill="#fdf0e8"/><text x="1189" y="128" fill="#b4501f">LAKE</text>
+    <rect x="1182" y="200" width="38" height="16" rx="8" fill="#fdf0e8"/><text x="1189" y="212" fill="#b4501f">LAKE</text>
+    <rect x="1182" y="270" width="38" height="16" rx="8" fill="#fdf0e8"/><text x="1189" y="282" fill="#b4501f">LAKE</text>
+  </g>
+
+  <!-- data flows: sources to transport -->
+  <path class="flow" d="M246,139 H274"/>
+  <path class="flow" d="M246,221 H274"/>
+  <path class="flow" d="M379,196 V182"/>
+  <path class="flow" d="M246,307 H274"/>
+  <!-- Kafka to Spark, Spark to Bronze and Silver -->
+  <path class="flow" d="M482,145 H510"/>
+  <path class="flow" d="M736,143 H780"/>
+  <!-- file loader to Bronze, below the processing column -->
+  <path class="flow" d="M482,326 H496 V354 H756 V158 H780"/>
+  <!-- Python processor reads Bronze and writes Silver (drawn over the loader lane) -->
+  <path class="halo" d="M736,307 H766"/>
+  <path class="flow" d="M736,307 H766 V206 H780"/>
+  <!-- contracts used by both processors -->
+  <path class="ctl" d="M624,208 V196"/>
+  <path class="ctl" d="M624,260 V274"/>
+  <!-- Postgres to the lake and serving -->
+  <path class="flow" d="M990,130 H1020"/>
+  <path class="flow" d="M1125,180 V192"/>
+  <path class="flow" d="M1125,250 V262"/>
+  <path class="flow" d="M976,317 H1000 V341 H1020"/>
+  <path class="ctl" d="M990,401 H1020"/>
+  <path class="ctl" d="M1228,222 H1244 V341 H1230"/>
+
+  <!-- bottom band: tools on committed state -->
+  <text class="h" x="32" y="470">ON THE SAME COMMITTED STATE</text>
+  <rect class="tool" x="32" y="482" width="188" height="84" rx="8"/>
+  <text class="t" x="44" y="505">Revenue Leak Hunter</text>
+  <text class="s" x="44" y="524">10 reviewed SQL rules,</text>
+  <text class="s" x="44" y="539">case age on the event-time</text>
+  <text class="s" x="44" y="554">clock, audited actions</text>
+
+  <rect class="tool" x="233.6" y="482" width="188" height="84" rx="8"/>
+  <text class="t" x="245.6" y="505">Chaos Lab</text>
+  <text class="s" x="245.6" y="524">incidents A to E in a</text>
+  <text class="s" x="245.6" y="539">disposable lab database,</text>
+  <text class="s" x="245.6" y="554">verified against a clean run</text>
+
+  <rect class="tool" x="435.2" y="482" width="188" height="84" rx="8"/>
+  <text class="t" x="447.2" y="505">Data Time Machine</text>
+  <text class="s" x="447.2" y="524">replay a window from Bronze,</text>
+  <text class="s" x="447.2" y="539">promote in one transaction,</text>
+  <text class="s" x="447.2" y="554">undo exactly</text>
+
+  <rect class="tool" x="636.8" y="482" width="188" height="84" rx="8"/>
+  <text class="t" x="648.8" y="505">Lineage</text>
+  <text class="s" x="648.8" y="524">table level, derived from</text>
+  <text class="s" x="648.8" y="539">contracts, dbt manifest,</text>
+  <text class="s" x="648.8" y="554">rule SQL and page code</text>
+
+  <rect class="tool" x="838.4" y="482" width="188" height="84" rx="8"/>
+  <text class="t" x="850.4" y="505">Airflow 3.1</text>
+  <text class="s" x="850.4" y="524">publish, dbt on both engines,</text>
+  <text class="s" x="850.4" y="539">lake compare, Leak Hunter;</text>
+  <text class="s" x="850.4" y="554">tasks call the CLI</text>
+
+  <rect class="truth" x="1040" y="482" width="188" height="84" rx="8"/>
+  <text class="t" x="1052" y="505">Benchmarks, evaluation</text>
+  <text class="s" x="1052" y="524">separate packages that read</text>
+  <text class="s" x="1052" y="539">the truth ledger to check</text>
+  <text class="s" x="1052" y="554">results; detection never does</text>
+
+  <path class="ctl" d="M139,422 V440 H1134 V480"/>
+
+  <!-- legend -->
+  <g transform="translate(32,604)">
+    <path class="flow" d="M0,8 H40"/><text class="s" x="50" y="12">data flow</text>
+    <path class="ctl" d="M130,8 H170"/><text class="s" x="180" y="12">uses / reads / schedules</text>
+    <rect x="340" y="0" width="48" height="16" rx="8" fill="#e6f6ef"/><text class="chip" x="351" y="12" fill="#0f7d56">LITE</text>
+    <text class="s" x="396" y="12">files + Python processor, runs in two minutes</text>
+    <rect x="680" y="0" width="52" height="16" rx="8" fill="#e8f0fb"/><text class="chip" x="684" y="12" fill="#2a78d6">STREAM</text>
+    <text class="s" x="740" y="12">Kafka, Debezium, Spark</text>
+    <rect x="900" y="0" width="48" height="16" rx="8" fill="#fdf0e8"/><text class="chip" x="909" y="12" fill="#b4501f">LAKE</text>
+    <text class="s" x="956" y="12">Iceberg, Trino, Superset</text>
+  </g>
+  <text class="s" x="32" y="672">All data is synthetic. Every service binds to 127.0.0.1 by default; no credentials are committed.</text>
+  <text class="s" x="32" y="690">Correctness is shown by tests that compare results with the truth ledger or with a clean run (README: guarantees and their tests).</text>
+</svg>

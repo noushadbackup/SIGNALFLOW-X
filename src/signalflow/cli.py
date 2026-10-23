@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -30,10 +31,25 @@ def _cmd_run(args: argparse.Namespace) -> dict[str, Any]:
 
     data_dir = Path(args.data)
     runs = []
+    files_done = 0
+
+    def after_file(conn: Any) -> None:
+        # --pace-seconds turns the replay into a live feed for the control tower (Demo 1): one arrival file per
+        # interval, Gold rebuilt every --gold-every files so the dashboards move as data arrives.
+        nonlocal files_done
+        files_done += 1
+        if not args.no_hunt:
+            runs.append(hunt(conn))
+        if args.pace_seconds and args.gold_every and files_done % args.gold_every == 0:
+            proc = run_dbt("run")
+            if proc.returncode != 0:
+                sys.stderr.write(proc.stdout[-3000:])
+        if args.pace_seconds:
+            time.sleep(args.pace_seconds)
+
     with connect() as conn:
         prepare(conn, data_dir)
-        summary = ingest_and_process(conn, data_dir, chunk_size=args.chunk_size,
-                                     after_file=None if args.no_hunt else lambda c: runs.append(hunt(c)))
+        summary = ingest_and_process(conn, data_dir, chunk_size=args.chunk_size, after_file=after_file)
     result: dict[str, Any] = {"files": summary.files, "lines": summary.lines,
                               "bronze_inserted": summary.bronze_inserted, "silver_accepted": summary.accepted}
     if runs:
@@ -168,7 +184,10 @@ def _cmd_lake(args: argparse.Namespace) -> dict[str, Any]:
 def _use_database(database: str | None) -> None:
     import os
 
+    from .chaos.lab import ORIGINAL_PGDATABASE_ENV
+
     if database:
+        os.environ.setdefault(ORIGINAL_PGDATABASE_ENV, os.environ.get("PGDATABASE", "signalflow"))
         os.environ["PGDATABASE"] = database
 
 
@@ -426,6 +445,9 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--chunk-size", type=int, default=5000)
     r.add_argument("--skip-dbt", action="store_true")
     r.add_argument("--no-hunt", action="store_true", help="do not run the Leak Hunter after each arrival file")
+    r.add_argument("--pace-seconds", type=float, default=0.0,
+                   help="wait this long after each arrival file (a live feed for the control tower)")
+    r.add_argument("--gold-every", type=int, default=0, help="with --pace-seconds: dbt run after every N files")
     r.set_defaults(func=_cmd_run)
 
     s = sub.add_parser("status", help="show pipeline state")

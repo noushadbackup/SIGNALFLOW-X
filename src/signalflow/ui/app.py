@@ -97,6 +97,7 @@ def page_overview() -> None:
     st.markdown("#### Revenue assurance")
     if not data.table_exists("assurance.cases") or q(data.LEAK_LAST_RUN).empty:
         st.caption("The Leak Hunter has not run on this database yet.")
+        platform_assurance()
         return
     t = q(data.LEAK_TOTALS).iloc[0]
     tiles([
@@ -107,6 +108,38 @@ def page_overview() -> None:
     ])
     st.caption("Exposure is a rule-based estimate, not an audited loss. Details, evidence and actions: Revenue Leak "
                "Hunter.")
+    platform_assurance()
+
+
+def platform_assurance() -> None:
+    """One tile per operator tool, each read from the table that tool writes. A tool that has never run says so."""
+    st.markdown("#### Reliability and performance")
+    items = []
+    if data.table_exists("ops.alerts"):
+        a = q(data.ALERTS_SUMMARY).iloc[0]
+        items.append(("Diagnostic alerts firing", fmt_int(a.firing),
+                      f"{fmt_int(a.critical)} critical · evaluated {fmt_ts(a.last_evaluated)}"
+                      if a.last_evaluated is not None and not pd.isna(a.last_evaluated) else "not evaluated yet"))
+    if data.table_exists("ops.chaos_runs"):
+        c = q(data.CHAOS_SUMMARY).iloc[0]
+        items.append(("Chaos Lab incidents passed", f"{fmt_int(c.passed)} / {fmt_int(c.runs)}",
+                      f"last: {c.last_run} · {fmt_ts(c.last_at)}" if int(c.runs) else "no incident run yet"))
+    if data.table_exists("ops.replay_runs"):
+        r = q(data.REPLAY_SUMMARY).iloc[0]
+        items.append(("Time Machine replays", fmt_int(r.replays),
+                      f"{fmt_int(r.promoted)} promoted · last {r.last_status}" if int(r.replays) else "none yet"))
+    if data.table_exists("ops.benchmark_runs"):
+        b = q(data.BENCH_SUMMARY)
+        if b.empty:
+            items.append(("Benchmark", "–", "no completed run yet"))
+        else:
+            row = b.iloc[0]
+            items.append((f"Processor throughput ({row.workload})", f"{float(row.rows_per_second):,.0f}/s",
+                          f"{fmt_int(row.lines)} lines · {row.checks_passed}/{row.checks_total} checks passed"))
+    if items:
+        tiles(items)
+        st.caption("Alerts are evaluated by `signalflow alerts` and the exporter; incidents and replays run in the lab "
+                   "database; benchmark figures belong to the machine that recorded them (Benchmark Lab).")
 
 
 def page_telecom() -> None:
