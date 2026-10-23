@@ -13,6 +13,7 @@ from signalflow.contracts import (
     INVALID_TIMESTAMP,
     UNKNOWN_EVENT_TYPE,
     UNSUPPORTED_SCHEMA_VERSION,
+    VALIDATORS,
     ContractRegistry,
     compatibility_problems,
 )
@@ -92,9 +93,10 @@ SAMPLES: dict[str, dict[str, Any]] = {
 }
 
 
-@pytest.fixture(scope="module")
-def registry() -> ContractRegistry:
-    return ContractRegistry.load(CONTRACTS_DIR)
+@pytest.fixture(scope="module", params=VALIDATORS)
+def registry(request: pytest.FixtureRequest) -> ContractRegistry:
+    """Every contract test runs against both validators."""
+    return ContractRegistry.load(CONTRACTS_DIR, validator=request.param)
 
 
 def envelope(event_type: str, payload: dict[str, Any], version: str = "1.0") -> dict[str, Any]:
@@ -234,3 +236,68 @@ def test_contract_files_are_canonical_json() -> None:
     for path in CONTRACTS_DIR.rglob("*.json"):
         doc = json.loads(path.read_text())
         assert path.read_text() == json.dumps(doc, indent=2) + "\n", path
+
+
+# Keywords whose meaning is identical in draft-07 (the compiled validator) and 2020-12 (the reference). A contract
+# using anything else must extend this list only after checking the two drafts agree on it.
+SAFE_KEYWORDS = {"$schema", "$id", "title", "description", "type", "properties", "required", "additionalProperties",
+                 "enum", "const", "pattern", "minimum", "maximum", "exclusiveMinimum", "minLength", "maxLength",
+                 "if", "then", "allOf", "not", "x-business-key", "x-decimal-places"}
+
+
+def _keywords(node: Any) -> set[str]:
+    if isinstance(node, list):
+        return set().union(*(_keywords(n) for n in node)) if node else set()
+    if not isinstance(node, dict):
+        return set()
+    found = set(node)
+    for key, value in node.items():
+        found |= set().union(*(_keywords(v) for v in value.values())) if key == "properties" else _keywords(value)
+    return found
+
+
+def test_contracts_use_only_keywords_both_validators_agree_on() -> None:
+    for path in CONTRACTS_DIR.rglob("*.json"):
+        assert _keywords(json.loads(path.read_text())) <= SAFE_KEYWORDS, path
+
+
+def _variants(event: dict[str, Any]) -> list[Any]:
+    """Each payload field removed, nulled, or replaced by values that differ between lax and strict validators,
+    plus envelope damage."""
+    odd: list[Any] = [None, "", "x", 0, 1, 1.0, -1, 0.001, 1e12, True, False, [], {}]
+    out: list[Any] = [event]
+    for name in list(event["payload"]):
+        gone = copy.deepcopy(event)
+        del gone["payload"][name]
+        out.append(gone)
+        for value in odd:
+            changed = copy.deepcopy(event)
+            changed["payload"][name] = value
+            out.append(changed)
+    for name in ("event_id", "event_type", "schema_version", "event_time", "payload"):
+        for value in (None, 1, "bad", {}):
+            changed = copy.deepcopy(event)
+            changed[name] = value
+            out.append(changed)
+    extra = copy.deepcopy(event)
+    extra["payload"]["unexpected"] = 1
+    out.append(extra)
+    return out
+
+
+def test_compiled_and_reference_validators_decide_identically() -> None:
+    compiled = ContractRegistry.load(CONTRACTS_DIR, validator="compiled")
+    reference = ContractRegistry.load(CONTRACTS_DIR, validator="reference")
+    checked = 0
+    for event_type, payload in SAMPLES.items():
+        versions = sorted(v for et, v in reference.contracts if et == event_type)
+        for version in versions:
+            for event in _variants(envelope(event_type, payload, version)):
+                assert compiled.validate(event) == reference.validate(event), (event_type, version, event)
+                checked += 1
+    assert checked > 1500
+
+
+def test_validator_must_be_known() -> None:
+    with pytest.raises(ValueError):
+        ContractRegistry.load(CONTRACTS_DIR, validator="fast")

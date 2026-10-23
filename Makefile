@@ -11,7 +11,7 @@ SEED ?= 7
 	stream-up stream-down stream-init stream-replay stream-silver stream-transform stream-status test-stream \
 	lake-up lake-down lake-publish lake-transform lake-compare lake-status lake-maintain test-lake \
 	airflow-up airflow-password superset-up superset-bootstrap \
-	chaos chaos-runs replay-inspect replay-preview replay-list lineage observe-up observe-down metrics
+	chaos chaos-runs replay-inspect replay-preview replay-list lineage observe-up observe-down metrics bench bench-list
 
 setup:            ## create venv and install
 	python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev,ui,stream,lake]"
@@ -66,6 +66,13 @@ replay-list:
 
 lineage:          ## impact of a node: make lineage NODE=event:telecom.recharge PROFILE=stream
 	.venv/bin/signalflow lineage impact --node $(or $(NODE),event:telecom.recharge) --profile $(or $(PROFILE),lite)
+
+bench:            ## benchmark suite on one workload (XS, S, M, L): make bench WORKLOAD=S
+	SIGNALFLOW_BENCH_PG_CONTAINER=$${SIGNALFLOW_BENCH_PG_CONTAINER:-$$(docker compose ps -q postgres 2>/dev/null)} \
+		.venv/bin/python -m signalflow_bench run --workload $(or $(WORKLOAD),S)
+
+bench-list:       ## recorded benchmark runs
+	.venv/bin/python -m signalflow_bench list
 
 metrics:          ## one scrape of the exporter, printed
 	.venv/bin/signalflow metrics scrape

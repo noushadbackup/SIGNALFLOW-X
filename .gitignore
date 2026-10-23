@@ -11,3 +11,6 @@ dbt/logs/
 dbt/dbt_packages/
 logs/
 .cache/
+
+# Benchmark worker logs (results JSON is committed)
+benchmarks/logs/

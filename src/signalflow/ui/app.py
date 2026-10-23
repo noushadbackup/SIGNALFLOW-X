@@ -1,20 +1,16 @@
 """SignalFlow X control tower (Streamlit). Run with `make ui`.
 
-Every number on screen comes from a query in `signalflow.ui.data`; sections whose backing feature is not built yet
-say which phase delivers them instead of showing sample figures.
+Every number on screen comes from a query against Postgres (or Trino for the Lakehouse page); nothing is sample data.
 """
 
 from __future__ import annotations
-
-import html
-from collections.abc import Callable
 
 import pandas as pd
 import plotly.graph_objects as go
 import psycopg
 import streamlit as st
 
-from signalflow.ui import auth, chaos_lab, data, leak_hunter, lineage_explorer, time_machine
+from signalflow.ui import auth, benchmark_lab, chaos_lab, data, leak_hunter, lineage_explorer, time_machine
 from signalflow.ui.components import (
     ARRIVAL_COLOR,
     CATEGORICAL,
@@ -308,8 +304,8 @@ def page_pipeline() -> None:
         ("Batch p95", f"{dur.quantile(.95):,.0f} ms" if len(dur) else "–", "processing time"),
         ("Accepted share", f"{int(c.silver_events) / max(int(c.bronze_rows), 1):.2%}", "silver ÷ bronze"),
     ])
-    st.caption("Batch timings come from ops.processing_runs on this machine. The controlled benchmark suite with "
-               "baseline vs optimised runs is Phase 6.")
+    st.caption("Batch timings come from ops.processing_runs on this machine. Controlled measurements on workloads "
+               "of several sizes, baseline against optimized: Benchmark Lab.")
 
     a, b = st.columns(2)
     with a:
@@ -455,16 +451,6 @@ def lake_cached(what: str) -> pd.DataFrame:
     return data.lake_snapshots(layer, table)
 
 
-def planned(phase: str, title: str, what: list[str]) -> Callable[[], None]:
-    def render() -> None:
-        header("Planned", title, "Not built yet. This page appears with real data when its phase ships.")
-        items = "".join(f"<li>{html.escape(w)}</li>" for w in what)
-        st.markdown(f'<div class="sf-card"><span class="sf-phase">{phase}</span><ul style="margin-top:12px">{items}'
-                    f"</ul></div>", unsafe_allow_html=True)
-    render.__name__ = "planned_" + title.lower().replace(" ", "_")
-    return render
-
-
 def main() -> None:
     st.set_page_config(page_title="SignalFlow X", page_icon=":material/hub:", layout="wide")
     st.markdown(CSS, unsafe_allow_html=True)
@@ -483,12 +469,8 @@ def main() -> None:
                   st.Page(chaos_lab.page, title="Chaos Lab", url_path="chaos-lab", icon=":material/science:"),
                   st.Page(time_machine.page, title="Time Machine", url_path="time-machine", icon=":material/history:")],
         "Platform": [st.Page(page_lakehouse, title="Lakehouse", url_path="lakehouse", icon=":material/database:"),
-                     st.Page(lineage_explorer.page, title="Lineage", url_path="lineage", icon=":material/account_tree:")],
-        "Planned": [
-            st.Page(planned("Phase 6", "Benchmarks", [
-                "p50 / p95 / p99 latency and throughput, baseline vs optimised", "Methodology and hardware recorded"]),
-                title="Benchmarks", url_path="benchmarks", icon=":material/speed:"),
-        ],
+                     st.Page(lineage_explorer.page, title="Lineage", url_path="lineage", icon=":material/account_tree:"),
+                     st.Page(benchmark_lab.page, title="Benchmark Lab", url_path="benchmarks", icon=":material/speed:")],
     }
     nav = st.navigation(pages)
     with st.sidebar:

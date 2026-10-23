@@ -56,8 +56,9 @@ def test_manifest_counts_match_files(dataset: Path) -> None:
     assert len(lines) == manifest["unique_valid_events"] + manifest["technical_duplicates"] + quarantine
 
 
-def test_valid_events_pass_contracts_and_invalid_fail_as_expected(dataset: Path) -> None:
-    registry = ContractRegistry.load(CONTRACTS_DIR)
+@pytest.mark.parametrize("validator", ["compiled", "reference"])
+def test_valid_events_pass_contracts_and_invalid_fail_as_expected(dataset: Path, validator: str) -> None:
+    registry = ContractRegistry.load(CONTRACTS_DIR, validator=validator)
     manifest = json.loads((dataset / "truth" / "manifest.json").read_text())
     valid_ids = set((dataset / "truth" / "valid_event_ids.txt").read_text().split())
     seen: Counter[str] = Counter()

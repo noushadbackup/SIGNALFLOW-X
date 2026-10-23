@@ -8,12 +8,15 @@ why business rules are expressed in JSON Schema wherever the language allows it.
 from __future__ import annotations
 
 import json
+import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+import fastjsonschema
 from jsonschema import Draft202012Validator
 
 # Reason codes are part of the operator-facing contract: dashboards and alerts group by them.
@@ -25,6 +28,11 @@ INVALID_TIMESTAMP = "INVALID_TIMESTAMP"
 
 # A producer clock may run slightly behind the business clock; anything beyond this is treated as corrupt.
 MAX_PRODUCER_CLOCK_SKEW = timedelta(minutes=5)
+
+# "compiled" (default): schemas compiled to Python by fastjsonschema decide acceptance; a record they reject is
+# re-checked by jsonschema, which gives the reasons and has the final word. "reference": jsonschema only. The Phase 6
+# profile found jsonschema took about two thirds of the Silver processor's time (docs/reports/PHASE6_REPORT.md).
+VALIDATORS = ("compiled", "reference")
 
 
 @dataclass(frozen=True)
@@ -42,6 +50,7 @@ class Contract:
     schema: dict[str, Any]
     validator: Draft202012Validator
     decimal_fields: tuple[str, ...]
+    compiled: Callable[[Any], Any] | None = None
 
     @property
     def contract_id(self) -> str:
@@ -65,13 +74,39 @@ def _decimal_places_ok(value: Any, places: int) -> bool:
     return Decimal(repr(value)).as_tuple().exponent >= -places  # type: ignore[operator]
 
 
+def _compile(schema: dict[str, Any]) -> Callable[[Any], Any]:
+    """Compile with draft-07 semantics. The contracts only use keywords whose meaning is the same in draft-07 and
+    2020-12 (a unit test pins the list and compares both validators on every sample). Defaults are never filled in,
+    so validation cannot modify an event."""
+    check: Callable[[Any], Any] = fastjsonschema.compile(
+        {**schema, "$schema": "http://json-schema.org/draft-07/schema#"}, use_default=False, use_formats=False)
+    return check
+
+
+def _passes(check: Callable[[Any], Any] | None, instance: Any) -> bool:
+    if check is None:
+        return False
+    try:
+        check(instance)
+    except fastjsonschema.JsonSchemaException:
+        return False
+    return True
+
+
 class ContractRegistry:
-    def __init__(self, envelope: dict[str, Any], contracts: dict[tuple[str, str], Contract]):
+    def __init__(self, envelope: dict[str, Any], contracts: dict[tuple[str, str], Contract],
+                 validator: str = "compiled"):
+        if validator not in VALIDATORS:
+            raise ValueError(f"validator must be one of {VALIDATORS}")
+        self.validator = validator
         self._envelope = Draft202012Validator(envelope)
+        self._envelope_compiled = _compile(envelope) if validator == "compiled" else None
         self._contracts = contracts
 
     @classmethod
-    def load(cls, root: Path) -> ContractRegistry:
+    def load(cls, root: Path, validator: str | None = None) -> ContractRegistry:
+        """``validator`` defaults to SIGNALFLOW_VALIDATOR, else "compiled"."""
+        validator = validator or os.environ.get("SIGNALFLOW_VALIDATOR", "compiled")
         envelope = json.loads((root / "envelope.json").read_text())
         Draft202012Validator.check_schema(envelope)
         contracts: dict[tuple[str, str], Contract] = {}
@@ -84,9 +119,10 @@ class ContractRegistry:
                 name for name, prop in schema["properties"].items() if "x-decimal-places" in prop
             )
             contracts[(event_type, version)] = Contract(
-                event_type, version, schema, Draft202012Validator(schema), decimals
+                event_type, version, schema, Draft202012Validator(schema), decimals,
+                _compile(schema) if validator == "compiled" else None,
             )
-        return cls(envelope, contracts)
+        return cls(envelope, contracts, validator)
 
     @property
     def contracts(self) -> dict[tuple[str, str], Contract]:
@@ -101,7 +137,8 @@ class ContractRegistry:
     def validate(self, event: Any) -> ValidationResult:
         if not isinstance(event, dict):
             return ValidationResult(False, ENVELOPE_VIOLATION, ["event is not a JSON object"])
-        env_errors = sorted(self._envelope.iter_errors(event), key=lambda e: list(e.path))
+        env_errors = [] if _passes(self._envelope_compiled, event) else \
+            sorted(self._envelope.iter_errors(event), key=lambda e: list(e.path))
         if env_errors:
             return ValidationResult(False, ENVELOPE_VIOLATION, [_fmt(e) for e in env_errors][:10])
 
@@ -126,7 +163,8 @@ class ContractRegistry:
             )
 
         payload = event["payload"]
-        errors = [_fmt(e) for e in sorted(contract.validator.iter_errors(payload), key=lambda e: list(e.path))]
+        errors = [] if _passes(contract.compiled, payload) else \
+            [_fmt(e) for e in sorted(contract.validator.iter_errors(payload), key=lambda e: list(e.path))]
         errors += [
             f"payload.{name}: more than 2 decimal places"
             for name in contract.decimal_fields
