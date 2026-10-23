@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from ..log import get_logger
+from ..pipeline import dbt_executable
 from .settings import CATALOG, LakeSettings
 from .tables import TABLES
 from .trino_sql import query
@@ -64,7 +65,7 @@ def run_dbt_lake(command: str = "build", extra: list[str] | None = None,
     from ..pipeline import DBT_DIR
 
     settings = settings or LakeSettings.from_env()
-    args = ["dbt", "--no-use-colors", command, "--project-dir", str(DBT_DIR), "--profiles-dir", str(DBT_DIR),
+    args = [dbt_executable(), "--no-use-colors", command, "--project-dir", str(DBT_DIR), "--profiles-dir", str(DBT_DIR),
             "--target", "lake", "--target-path", str(DBT_DIR / "target" / f"lake{settings.namespace_prefix}")]
     if settings.namespace_prefix:
         args += ["--vars", f"{{lake_prefix: '{settings.namespace_prefix}'}}"]

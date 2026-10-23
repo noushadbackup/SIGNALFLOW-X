@@ -10,7 +10,8 @@ SEED ?= 7
 	hunt cases evaluate operator \
 	stream-up stream-down stream-init stream-replay stream-silver stream-transform stream-status test-stream \
 	lake-up lake-down lake-publish lake-transform lake-compare lake-status lake-maintain test-lake \
-	airflow-up airflow-password superset-up superset-bootstrap
+	airflow-up airflow-password superset-up superset-bootstrap \
+	chaos chaos-runs replay-inspect replay-preview replay-list lineage observe-up observe-down metrics
 
 setup:            ## create venv and install
 	python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev,ui,stream,lake]"
@@ -46,6 +47,34 @@ evaluate:         ## offline precision/recall against the scenario ledger of $(D
 
 operator:         ## create or update a sign-in: make operator OPERATOR=nadia ROLE=analyst NAME="Nadia Rahman"
 	.venv/bin/signalflow operators add $(OPERATOR) --role $(or $(ROLE),viewer) $(if $(NAME),--name "$(NAME)")
+
+# --- Phase 5: Chaos Lab, Data Time Machine, lineage, observability ---
+chaos:            ## run an incident in the rebuilt lab database: make chaos INCIDENT=A OP=tanvir (operator role)
+	.venv/bin/signalflow chaos run $(INCIDENT) --user $(OP)
+
+chaos-runs:       ## incident runs and their status
+	.venv/bin/signalflow chaos list
+
+replay-inspect:   ## what a window holds: make replay-inspect STREAM=telecom START=2026-10-05T00:00+06:00 END=2026-10-06T00:00+06:00
+	.venv/bin/signalflow replay inspect --stream $(STREAM) --start $(START) --end $(END) --database $(or $(DB),$(PGDATABASE))
+
+replay-preview:   ## isolated replay from Bronze (Silver untouched); same variables plus OP=<analyst or higher>
+	.venv/bin/signalflow replay preview --stream $(STREAM) --start $(START) --end $(END) --user $(OP) --database $(or $(DB),$(PGDATABASE))
+
+replay-list:
+	.venv/bin/signalflow replay list --database $(or $(DB),$(PGDATABASE))
+
+lineage:          ## impact of a node: make lineage NODE=event:telecom.recharge PROFILE=stream
+	.venv/bin/signalflow lineage impact --node $(or $(NODE),event:telecom.recharge) --profile $(or $(PROFILE),lite)
+
+metrics:          ## one scrape of the exporter, printed
+	.venv/bin/signalflow metrics scrape
+
+observe-up:       ## exporter + Prometheus (127.0.0.1:59090) + Grafana (127.0.0.1:53000, GRAFANA_ADMIN_PASSWORD)
+	docker compose --profile observe up -d --build postgres exporter prometheus grafana
+
+observe-down:
+	docker compose --profile observe stop exporter prometheus grafana
 
 lint:
 	.venv/bin/ruff check src tests && .venv/bin/mypy src

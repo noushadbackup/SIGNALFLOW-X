@@ -19,7 +19,10 @@ pasted from real runs, with date and commit.
 | Lakehouse units (P3) | pytest | no | table specs select their high-water mark, no Postgres-only types; differential normalisation | `tests/unit/test_lakehouse_units.py` |
 | Leak Hunter acceptance (P4) | pytest `-m integration` | Postgres | 11-day dataset hunted after every file: no false confirmation, every leak past its horizon confirmed, every delayed billing seen as suspicious then cleared, idempotent re-run, cadence-independent final state, rollback of a failed hunt, role checks and audit of analyst actions | `tests/integration/test_phase4_assurance.py` |
 | Leak Hunter units (P4) | pytest | no | rule files return the shared columns; status boundaries; horizons exceed every generator delay; case ids; scrypt hashing; role order; detection never imports `signalflow_eval`; evaluation counting | `tests/unit/test_assurance_units.py` |
-| Chaos scenarios (P5) | pytest | full | each incident's expected behaviour, as JSON incident reports | planned |
+| Chaos Lab (P5) | pytest `-m integration` | Postgres | incidents A–E in a rebuilt lab database: each incident's expected behaviour holds and the recovered lab equals a clean run of the same dataset (Silver fingerprint, Gold revenue, stock); a viewer is refused and audited; protected database names are refused | `tests/integration/test_phase5_chaos.py` |
+| Time Machine (P5) | pytest `-m integration` | Postgres | inflated amounts repaired from Bronze, Gold rebuilt and reconciled, undo restores the damaged state exactly; deleted events reinserted with their original arrival class; stale previews and a running processor block promotion; role and window guards; defects refused outside a lab | `tests/integration/test_phase5_timemachine.py` |
+| Time Machine lake (P5) | pytest `-m lake` | Postgres, SeaweedFS, Trino | a promoted replay synced to Iceberg for exactly the touched keys, verified row by row; undo rolls the table back with `rollback_to_snapshot`; time travel shows the damaged state (the re-sync fallback is not yet tested) | `tests/lake/test_phase5_timemachine_lake.py` |
+| Lineage and metrics units (P5) | pytest | no | event types, staging models and KPIs connected as derived; recharge reaches the revenue dashboard through Kafka, Spark, dbt and the lake in stream but not through Kafka in lite; job-failure impact depends on profile; KPI to dashboard links require model and column; alert subjects map to nodes or to nothing; column-level lineage is not claimed; exporter text format and failure reporting | `tests/unit/test_lineage.py`, `tests/unit/test_observability_units.py` |
 | Benchmarks (P6) | script | full | measured throughput / latency / recovery; not pass/fail | planned |
 
 ## Oracle: the ground-truth ledger
@@ -50,6 +53,10 @@ started in their own process group and killed with SIGKILL while records are sti
 (`SIGNALFLOW_FAULT_EXIT_AFTER_BATCH`, `SIGNALFLOW_FAULT_FAIL_IN_BATCH`, both refused without
 `SIGNALFLOW_ALLOW_FAULT_INJECTION=1`) hit the two narrow windows deterministically: exit right after the Postgres
 commit (Spark must replay the batch and the sink must skip it), and fail inside the transaction (nothing written).
+
+The Chaos Lab (Phase 5) turns these into operator-run incidents: each one rebuilds a lab database, injects, observes,
+recovers and is verified against a clean run of the same dataset (ADR-0011). Incident D kills the Silver processor,
+running as its own OS process, with SIGKILL while it drains a backlog.
 
 ## CI
 

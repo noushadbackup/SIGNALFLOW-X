@@ -249,6 +249,152 @@ def _cmd_operators(args: argparse.Namespace) -> dict[str, Any]:
                                        strict=True)) for r in rows]}
 
 
+def _authenticated(conn: Any, user: str | None) -> Any:
+    from .security import authenticate
+
+    if not user:
+        raise SystemExit("--user is required for this action")
+    op = authenticate(conn, user, _operator_password("SIGNALFLOW_OPERATOR_PASSWORD"))
+    if op is None:
+        raise SystemExit("authentication failed")
+    return op
+
+
+def _cmd_chaos(args: argparse.Namespace) -> dict[str, Any]:
+    from .chaos import lab
+    from .chaos.incidents import INCIDENTS
+    from .chaos.runner import run
+
+    _use_database(args.database)
+    with connect() as conn:
+        migrate(conn)
+        if args.action == "incidents":
+            return {"incidents": {c: {"title": i.title, "expected_behaviour": list(i.expected_behaviour),
+                                      "recovery": i.recovery_kind} for c, i in INCIDENTS.items()}}
+        if args.action == "list":
+            rows = conn.execute("""SELECT run_id, incident, title, status, operator, started_at, finished_at
+                                   FROM ops.chaos_runs ORDER BY started_at DESC LIMIT %s""", (args.limit,)).fetchall()
+            keys = ("run_id", "incident", "title", "status", "operator", "started_at", "finished_at")
+            return {"runs": [dict(zip(keys, r, strict=True)) for r in rows]}
+        if args.action == "report":
+            row = conn.execute("SELECT report FROM ops.chaos_runs WHERE run_id = %s", (args.run,)).fetchone()
+            if row is None:
+                raise SystemExit(f"unknown run {args.run}")
+            return dict(row[0])
+        if args.action == "reset":
+            name = lab.lab_database_name(args.lab_database)
+            lab.drop_database(name)
+            return {"dropped": name}
+        if not args.incident or args.incident not in INCIDENTS:
+            raise SystemExit(f"choose an incident: {', '.join(INCIDENTS)}")
+        dataset = lab.LabDataset(seed=args.seed, days=args.days, subscribers=args.subscribers)
+        report = run(conn, args.incident, _authenticated(conn, args.user), dataset, args.lab_database)
+        if args.out:
+            Path(args.out).write_text(json.dumps(report, indent=2) + "\n")
+        return {"run_id": report["run_id"], "status": report["status"],
+                "verification": [{"check": c["name"], "passed": c["passed"]} for c in report.get("verification", [])],
+                "error": report.get("error", {}).get("message"), "exit_code": 0 if report["status"] == "PASSED" else 1}
+
+
+def _cmd_alerts(args: argparse.Namespace) -> dict[str, Any]:
+    from .observability import alerts
+
+    _use_database(args.database)
+    with connect() as conn:
+        migrate(conn)
+        return alerts.evaluate(conn)
+
+
+def _window(args: argparse.Namespace) -> Any:
+    from datetime import datetime
+
+    from .timemachine.replay import Window
+
+    if not (args.stream and args.start and args.end):
+        raise SystemExit("--stream, --start and --end are required (ISO 8601 with a time zone)")
+    return Window(args.stream, datetime.fromisoformat(args.start), datetime.fromisoformat(args.end))
+
+
+def _cmd_replay(args: argparse.Namespace) -> dict[str, Any]:
+    from .timemachine import defects
+    from .timemachine import replay as tm
+
+    _use_database(args.database)
+    with connect() as conn:
+        migrate(conn)
+        if args.action == "inspect":
+            return tm.inspect_window(conn, _window(args))
+        if args.action == "list":
+            rows = conn.execute("""SELECT replay_id, stream, window_start, window_end, status, requested_by,
+                                          summary -> 'changes', created_at
+                                   FROM ops.replay_runs ORDER BY created_at DESC LIMIT %s""", (args.limit,)).fetchall()
+            keys = ("replay_id", "stream", "window_start", "window_end", "status", "requested_by", "changes",
+                    "created_at")
+            return {"replays": [dict(zip(keys, r, strict=True)) for r in rows]}
+        if args.action == "show":
+            return tm.get(conn, args.replay)
+        operator = _authenticated(conn, args.user)
+        if args.action == "defect":
+            return defects.inject(conn, operator, _window(args), args.kind, args.rows)
+        if args.action == "preview":
+            run = tm.preview(conn, operator, _window(args))
+            return {k: run[k] for k in ("replay_id", "status", "bronze_rows", "summary", "verification")} | {
+                "changed_metrics": [m for m in run["metrics_diff"] if m["changed"]]}
+        if args.action == "discard":
+            return tm.discard(conn, operator, args.replay)
+        result: dict[str, Any] = {}
+        if args.action == "promote":
+            run = tm.promote(conn, operator, args.replay)
+            result["summary"] = run["summary"]
+        else:
+            run = tm.undo(conn, operator, args.replay)
+            result["status"] = run["status"]
+        if not args.no_gold:
+            result["gold"] = tm.rebuild_gold(conn, args.replay)
+        if args.lake:
+            from .lakehouse.settings import LakeSettings
+            from .timemachine import lake
+
+            settings = LakeSettings.from_env()
+            result["lake"] = (lake.sync(settings, conn, args.replay) if args.action == "promote"
+                              else lake.undo_lake(settings, conn, args.replay))
+        return result
+
+
+def _cmd_lineage(args: argparse.Namespace) -> dict[str, Any]:
+    from .lineage import graph as lg
+
+    g = lg.build()
+    if args.action == "nodes":
+        return {"nodes": [{"id": n.id, "label": n.label, "evidence": n.evidence}
+                          for n in sorted(g.nodes.values(), key=lambda n: n.id)
+                          if not args.kind or n.kind == args.kind],
+                "notes": g.notes}
+    if args.action == "dot":
+        around = set(lg.downstream(g, args.node, args.profile)) | set(lg.upstream(g, args.node, args.profile))
+        return {"dot": lg.to_dot(g, around, args.profile, start=args.node)}
+    if args.job:
+        reach = lg.job_failure(g, args.job, args.profile)
+    elif args.node:
+        reach = (lg.upstream if args.action == "upstream" else lg.downstream)(g, args.node, args.profile)
+    else:
+        raise SystemExit("--node or --job is required")
+    summary = lg.impact_summary(g, reach)
+    return {"profile": args.profile, "affected": {k: v for k, v in summary.items()},
+            "paths": {n: {"path": list(reach[n].path), "jobs": list(reach[n].jobs)}
+                      for n in summary.get("kpi", []) + summary.get("dashboard", [])},
+            "column_level": lg.COLUMN_LEVEL, "notes": g.notes}
+
+
+def _cmd_metrics(args: argparse.Namespace) -> None:
+    from .observability import exporter
+
+    if args.action == "scrape":
+        print(exporter.scrape(args.database), end="")
+    else:
+        exporter.serve(args.host, args.port, args.database)
+
+
 def _cmd_bi(args: argparse.Namespace) -> dict[str, Any]:
     import os
 
@@ -329,6 +475,55 @@ def main(argv: list[str] | None = None) -> int:
     ops_.add_argument("--database", help="Postgres database (default PGDATABASE)")
     ops_.set_defaults(func=_cmd_operators)
 
+    ch = sub.add_parser("chaos", help="Chaos Lab: run predefined incidents in a disposable lab database")
+    ch.add_argument("action", choices=["incidents", "run", "list", "report", "reset"])
+    ch.add_argument("incident", nargs="?", help="run: A, B, C, D or E")
+    ch.add_argument("--database", help="control database that records runs and operators (default PGDATABASE)")
+    ch.add_argument("--lab-database", help="lab database (default SIGNALFLOW_LAB_DB or signalflow_lab)")
+    ch.add_argument("--user", help="operator username (password from SIGNALFLOW_OPERATOR_PASSWORD or a prompt)")
+    ch.add_argument("--run", help="report: run id")
+    ch.add_argument("--out", help="run: also write the incident report to this JSON file")
+    ch.add_argument("--seed", type=int, default=7)
+    ch.add_argument("--days", type=int, default=3)
+    ch.add_argument("--subscribers", type=int, default=1000)
+    ch.add_argument("--limit", type=int, default=20)
+    ch.set_defaults(func=_cmd_chaos)
+
+    al = sub.add_parser("alerts", help="evaluate the diagnostic alert rules and list what is firing")
+    al.add_argument("action", choices=["evaluate"])
+    al.add_argument("--database", help="Postgres database (default PGDATABASE)")
+    al.set_defaults(func=_cmd_alerts)
+
+    rp = sub.add_parser("replay", help="Data Time Machine: replay an event-time window from Bronze")
+    rp.add_argument("action", choices=["inspect", "preview", "promote", "undo", "discard", "list", "show", "defect"])
+    rp.add_argument("--database", help="Postgres database (default PGDATABASE)")
+    rp.add_argument("--stream", choices=["telecom", "mfg"])
+    rp.add_argument("--start", help="window start, ISO 8601 with a time zone")
+    rp.add_argument("--end", help="window end (exclusive), at most 3 days after the start")
+    rp.add_argument("--replay", help="replay id (promote, undo, discard, show)")
+    rp.add_argument("--user", help="operator username (password from SIGNALFLOW_OPERATOR_PASSWORD or a prompt)")
+    rp.add_argument("--no-gold", action="store_true", help="promote/undo: skip the dbt rebuild of affected models")
+    rp.add_argument("--lake", action="store_true", help="promote/undo: also sync (or roll back) the Iceberg tables")
+    rp.add_argument("--kind", choices=["inflate_amounts", "drop_events"], help="defect (lab databases only)")
+    rp.add_argument("--rows", type=int, default=20)
+    rp.add_argument("--limit", type=int, default=20)
+    rp.set_defaults(func=_cmd_replay)
+
+    ln = sub.add_parser("lineage", help="table-level lineage and impact analysis")
+    ln.add_argument("action", choices=["impact", "upstream", "nodes", "dot"])
+    ln.add_argument("--node", help="node id, e.g. event:telecom.recharge or kpi:gross_recharge_revenue")
+    ln.add_argument("--job", help="impact of a stopped job, e.g. spark_silver or lake_publisher")
+    ln.add_argument("--kind", help="nodes: only this kind (source, event, topic, model, rule, kpi, dashboard, ...)")
+    ln.add_argument("--profile", choices=["lite", "stream"], default="lite")
+    ln.set_defaults(func=_cmd_lineage)
+
+    mt = sub.add_parser("metrics", help="Prometheus exporter (platform state read from Postgres at scrape time)")
+    mt.add_argument("action", choices=["serve", "scrape"])
+    mt.add_argument("--database", help="Postgres database (default PGDATABASE)")
+    mt.add_argument("--host", default="127.0.0.1", help="bind address (default 127.0.0.1; 0.0.0.0 only in a container)")
+    mt.add_argument("--port", type=int, default=9101)
+    mt.set_defaults(func=_cmd_metrics)
+
     bi = sub.add_parser("bi", help="Superset assets (Trino connection, datasets, charts, dashboard)")
     bi.add_argument("action", choices=["bootstrap"])
     bi.add_argument("--url", help="Superset base URL (default SIGNALFLOW_SUPERSET_URL or http://127.0.0.1:58088)")
@@ -336,7 +531,8 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     result = args.func(args)
-    print(json.dumps(result, indent=2, default=str))
+    if result is not None:  # metrics writes its own output
+        print(json.dumps(result, indent=2, default=str))
     if isinstance(result, dict):
         return int(result.get("dbt_returncode", 0)) or int(result.get("exit_code", 0))
     return 0

@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 import psycopg
 import streamlit as st
 
-from signalflow.ui import auth, data, leak_hunter
+from signalflow.ui import auth, chaos_lab, data, leak_hunter, lineage_explorer, time_machine
 from signalflow.ui.components import (
     ARRIVAL_COLOR,
     CATEGORICAL,
@@ -479,18 +479,12 @@ def main() -> None:
                     st.Page(page_telecom, title="Telecom", url_path="telecom", icon=":material/cell_tower:"),
                     st.Page(page_manufacturing, title="Manufacturing", url_path="manufacturing", icon=":material/factory:")],
         "Trust": [st.Page(leak_hunter.page, title="Revenue Leak Hunter", url_path="leak-hunter", icon=":material/search_insights:"),
-                  st.Page(page_pipeline, title="Pipeline observatory", url_path="pipeline", icon=":material/monitor_heart:")],
-        "Platform": [st.Page(page_lakehouse, title="Lakehouse", url_path="lakehouse", icon=":material/database:")],
+                  st.Page(page_pipeline, title="Pipeline observatory", url_path="pipeline", icon=":material/monitor_heart:"),
+                  st.Page(chaos_lab.page, title="Chaos Lab", url_path="chaos-lab", icon=":material/science:"),
+                  st.Page(time_machine.page, title="Time Machine", url_path="time-machine", icon=":material/history:")],
+        "Platform": [st.Page(page_lakehouse, title="Lakehouse", url_path="lakehouse", icon=":material/database:"),
+                     st.Page(lineage_explorer.page, title="Lineage", url_path="lineage", icon=":material/account_tree:")],
         "Planned": [
-            st.Page(planned("Phase 5", "Chaos Lab", [
-                "Incidents A to E: duplicate storm, late surge, schema break, streaming interruption, stock discrepancy",
-                "Start, observe, recover and verify each one, with an incident report"]), title="Chaos Lab", url_path="chaos-lab", icon=":material/science:"),
-            st.Page(planned("Phase 5", "Data Time Machine", [
-                "Iceberg snapshots: view any KPI as it was at an earlier point", "Isolated replay of a time window"]),
-                title="Time Machine", url_path="time-machine", icon=":material/history:"),
-            st.Page(planned("Phase 5", "Lineage and root cause", [
-                "Column-level path from a gold KPI back to bronze records", "Root-cause walk for a changed figure"]),
-                title="Lineage", url_path="lineage", icon=":material/account_tree:"),
             st.Page(planned("Phase 6", "Benchmarks", [
                 "p50 / p95 / p99 latency and throughput, baseline vs optimised", "Methodology and hardware recorded"]),
                 title="Benchmarks", url_path="benchmarks", icon=":material/speed:"),

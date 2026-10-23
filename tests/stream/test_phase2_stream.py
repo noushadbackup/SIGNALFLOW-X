@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import json
 import threading
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
 from signalflow import CONTRACTS_DIR
-from signalflow.contracts import ContractRegistry
+from signalflow.contracts import ContractRegistry, parse_utc
 from signalflow.erp import ErpApp, connect_db
 from signalflow.ingest.bronze_loader import arrival_files
 from signalflow.pipeline import run_dbt
@@ -53,9 +54,31 @@ def _assert_matches_reference(env: StreamEnv, data: Path, reference: dict[str, s
         ids = [r[0] for r in c.execute("SELECT batch_id FROM ops.stream_commits WHERE query_name = 'silver_events' "
                                        "ORDER BY batch_id")]
         assert ids == list(range(len(ids)))
-        # Lateness: only events the generator delayed may be late, whatever the batch boundaries were.
-        late = {r[0] for r in c.execute("SELECT event_id::text FROM silver.events WHERE arrival_class <> 'ON_TIME'")}
-        assert late <= _injected_late(data)
+        # Lateness. Events the generator delayed may be late. Any other event may only be late by the producer's
+        # delivery skew: within one arrival interval (one file, flushed before the next starts) Kafka partitions
+        # become readable at slightly different moments, so a micro-batch can see one topic further ahead than
+        # another. That is real streaming behaviour, and it is bounded: such an event is at most LATE_WITHIN, and
+        # its lateness is at most the interval's span plus its own transit time. Never LATE_BEYOND (KPI finality).
+        rows = c.execute("""SELECT event_id::text, event_type, arrival_class, lateness_seconds, event_time,
+                                   arrival_time FROM silver.events WHERE arrival_class <> 'ON_TIME'""").fetchall()
+        injected = _injected_late(data)
+        skew = _max_interval_span(data)
+        unexpected = [r for r in rows if r[0] not in injected]
+        out_of_bound = [r for r in unexpected
+                        if r[2] != "LATE_WITHIN_WATERMARK"
+                        or timedelta(seconds=r[3]) > skew + (r[5] - r[4]) + timedelta(seconds=1)]
+        assert not out_of_bound, f"{len(out_of_bound)} events late beyond the delivery skew ({skew}):\n" + \
+            "\n".join(map(str, out_of_bound[:20]))
+
+
+def _max_interval_span(data: Path) -> timedelta:
+    """Longest span of arrival times inside one arrival file (one producer delivery interval)."""
+    longest = timedelta(0)
+    for path in arrival_files(data / "arrivals"):
+        times = [parse_utc(t) for t in (read_line(line).arrival_time for line in path.read_text().splitlines()) if t]
+        if times:
+            longest = max(longest, max(times) - min(times))
+    return longest
 
 
 def _replay_in_background(env: StreamEnv, data: Path, pace_ms: int) -> threading.Thread:

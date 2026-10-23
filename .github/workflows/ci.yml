@@ -14,11 +14,12 @@ env:
   AIRFLOW_JWT_SECRET: ci-only-jwt-secret-0123456789abcdef
   SUPERSET_SECRET_KEY: ci-only-superset-secret-key
   SUPERSET_ADMIN_PASSWORD: ci-only-admin-password
+  GRAFANA_ADMIN_PASSWORD: ci-only-grafana-password
 
 jobs:
   test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:16-alpine
@@ -97,7 +98,7 @@ jobs:
     # Phase 3 acceptance: SeaweedFS + Trino in containers, Spark publisher and dbt-trino on the runner; then the
     # Airflow DAG runs end to end inside the Airflow image, and the Superset image builds.
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 60
     env:
       PGHOST: 127.0.0.1
       PGPORT: "5432"

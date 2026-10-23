@@ -26,7 +26,9 @@ PERMISSIONS = {
     "case.reopen": "analyst",
     "chaos.run": "operator",
     "chaos.recover": "operator",
-    "replay.run": "operator",
+    "replay.preview": "analyst",
+    "replay.promote": "operator",
+    "replay.undo": "operator",
     "operators.manage": "admin",
 }
 MIN_PASSWORD_LENGTH = 10

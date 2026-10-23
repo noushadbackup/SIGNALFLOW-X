@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -57,10 +59,16 @@ def prepare(conn: psycopg.Connection, data_dir: Path) -> None:
     load_reference(conn, data_dir / "reference")
 
 
+def dbt_executable() -> str:
+    """The dbt installed with this interpreter (a venv's bin is not always on PATH, e.g. under Streamlit or cron)."""
+    sibling = Path(sys.executable).with_name("dbt")
+    return str(sibling) if sibling.exists() else shutil.which("dbt") or "dbt"
+
+
 def run_dbt(command: str = "build", extra: list[str] | None = None,
             database: str | None = None) -> subprocess.CompletedProcess[str]:
     """Run dbt against PGDATABASE, or against ``database`` (e.g. the streaming profile's database)."""
-    args = ["dbt", "--no-use-colors", command, "--project-dir", str(DBT_DIR), "--profiles-dir", str(DBT_DIR)]
+    args = [dbt_executable(), "--no-use-colors", command, "--project-dir", str(DBT_DIR), "--profiles-dir", str(DBT_DIR)]
     args += extra or []
     env = dict(os.environ, DBT_SEND_ANONYMOUS_USAGE_STATS="false")
     if database:

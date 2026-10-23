@@ -112,6 +112,11 @@ models:
         data_tests:
           - relationships:
               arguments: {to: ref('dim_warehouse'), field: warehouse_id}
+      - name: authorization_status
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['NOT_REQUIRED', 'NO_APPROVAL_FOUND', 'APPROVAL_MISMATCH', 'APPROVAL_REUSED',
+                                   'AUTHORIZED']}
   - name: fct_shipment
     columns:
       - name: shipment_id
@@ -136,6 +141,11 @@ models:
     data_tests:
       - unique_combination:
           arguments: {columns: ['warehouse_id', 'sku']}
+    columns:
+      - name: position_status
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['CONSISTENT', 'UNCERTAIN']}
   - name: mart_mfg_sales_daily
     data_tests:
       - unique_combination:

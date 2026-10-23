@@ -1,6 +1,7 @@
 # SignalFlow X — local deployment.
 # Profiles: `lite` (Postgres only, Phase 1) and `stream` (adds Kafka, Kafka Connect + Debezium, Spark; Phase 2).
-# `lake` adds S3-compatible storage (SeaweedFS) and Trino over Iceberg (Phase 3); `full` adds Airflow and Superset.
+# `lake` adds S3-compatible storage (SeaweedFS) and Trino over Iceberg (Phase 3); `observe` adds the metrics exporter,
+# Prometheus and Grafana (Phase 5); `full` adds Airflow, Superset and the observe services.
 # Images default to mirror.gcr.io because Docker Hub rate-limits anonymous pulls; override with *_IMAGE variables.
 name: signalflow
 
@@ -65,7 +66,7 @@ x-superset-common: &superset-common
 
 services:
   postgres:
-    profiles: ["lite", "stream", "lake", "airflow", "superset", "full"]
+    profiles: ["lite", "stream", "lake", "airflow", "superset", "observe", "full"]
     image: ${POSTGRES_IMAGE:-mirror.gcr.io/library/postgres:16-alpine}
     environment:
       POSTGRES_USER: ${PGUSER:?set PGUSER in .env}
@@ -297,6 +298,79 @@ services:
       timeout: 10s
       retries: 30
 
+  # --- observe profile (Phase 5): Prometheus + Grafana over the SignalFlow exporter --------------------------------
+  exporter:
+    profiles: ["observe", "full"]
+    image: signalflow/exporter:0.1.0
+    build:
+      context: .
+      dockerfile: docker/exporter/Dockerfile
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${PGUSER}
+      PGPASSWORD: ${PGPASSWORD}
+      PGDATABASE: ${SIGNALFLOW_METRICS_DB:-${PGDATABASE}}
+    depends_on:
+      postgres: {condition: service_healthy}
+    ports:
+      - "127.0.0.1:${EXPORTER_PORT:-59101}:9101"
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    restart: unless-stopped
+
+  prometheus:
+    profiles: ["observe", "full"]
+    image: ${PROMETHEUS_IMAGE:-mirror.gcr.io/prom/prometheus:v3.5.0}
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=7d"]
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+      - promdata:/prometheus
+    depends_on: [exporter]
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-59090}:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    restart: unless-stopped
+
+  grafana:
+    profiles: ["observe", "full"]
+    image: ${GRAFANA_IMAGE:-mirror.gcr.io/grafana/grafana:12.1.1}
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/signalflow-platform.json
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      prometheus: {condition: service_healthy}
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-53000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+    restart: unless-stopped
+
 volumes:
   pgdata:
   kafkadata:
@@ -304,3 +378,5 @@ volumes:
   lakedata:
   airflowauth:
   airflowlogs:
+  promdata:
+  grafanadata:

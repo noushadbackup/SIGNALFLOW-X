@@ -15,7 +15,8 @@ replay-safe processing, event-time correctness, reconciliation and tested failur
 | 2 | Kafka (KRaft), ERP outbox + Debezium CDC, Spark Structured Streaming Bronze/Silver, kill/restart tests | ✅ done — [report](docs/reports/PHASE2_REPORT.md) |
 | 3 | Iceberg on S3-compatible storage, Trino, dbt-trino, lite-vs-lake differential test, Airflow, Superset | ✅ done — [report](docs/reports/PHASE3_REPORT.md) |
 | 4 | Revenue Leak Hunter (10 SQL rules, event-time case lifecycle, analyst actions with roles and audit), digital twin pages | ✅ done — [report](docs/reports/PHASE4_REPORT.md) |
-| 5–6 | Chaos Lab / Time Machine / lineage / Prometheus, full control tower and benchmarks | planned — see [plan](docs/IMPLEMENTATION_PLAN.md) |
+| 5 | Chaos Lab (incidents A–E), Data Time Machine (replay from Bronze, promote, undo, Iceberg rollback), table-level lineage and impact, Prometheus + Grafana | ✅ done — [report](docs/reports/PHASE5_REPORT.md) |
+| 6 | Integrated control tower, benchmarks, demo scripts, interview notes | planned — see [plan](docs/IMPLEMENTATION_PLAN.md) |
 
 ## Documentation
 
@@ -72,7 +73,8 @@ For the Leak Hunter, a longer dataset shows the whole lifecycle (leaks are confi
 `make generate DATA=data/seed7-12d DAYS=12 SUBSCRIBERS=1000 && make run DATA=data/seed7-12d`.
 
 What to look at next: [Phase 1 report](docs/reports/PHASE1_REPORT.md) has the measured results and demo queries;
-[Phase 4 report](docs/reports/PHASE4_REPORT.md) has the Leak Hunter's evaluation.
+[Phase 4 report](docs/reports/PHASE4_REPORT.md) has the Leak Hunter's evaluation;
+[Phase 5 report](docs/reports/PHASE5_REPORT.md) covers the Chaos Lab, Time Machine, lineage and monitoring.
 
 ## Quickstart (stream profile: Kafka + Debezium + Spark)
 
@@ -127,8 +129,15 @@ make superset-up && make superset-bootstrap   # Superset 5.0 on 127.0.0.1:58088,
 | A failed hunt leaves the previous case state | `test_failed_hunt_rolls_back` |
 | Case actions need the analyst role, are versioned, and every attempt (incl. denied) is audited | `test_analyst_actions_need_a_role_are_versioned_and_audited` |
 | Detection never reads the scenario ledger | `test_detection_code_never_imports_the_evaluation_package`, Phase 1 isolation test |
+| Each Chaos Lab incident (duplicate storm, late surge, schema break, processor SIGKILL, stock discrepancy) recovers to exactly the clean run of the same dataset | `tests/integration/test_phase5_chaos.py` (one test per incident) |
+| Incidents only touch a lab database; protected database names are refused | `test_lab_refuses_protected_database_names` |
+| A Time Machine replay repairs damaged Silver from Bronze, Gold is rebuilt and reconciles, and undo restores the previous state exactly | `test_inflated_amounts_are_repaired_reconciled_and_undone`, `test_deleted_events_are_reinserted_with_their_original_arrival_class` |
+| A replay is never promoted over a stale preview or while a processor runs | `test_promotion_is_refused_when_silver_changed_after_the_preview_or_a_processor_runs` |
+| The Iceberg copies follow a promotion and roll back with `rollback_to_snapshot` | `tests/lake/test_phase5_timemachine_lake.py` |
+| Lineage impact is profile-aware and never claims column-level lineage | `tests/unit/test_lineage.py` |
 
 Not claimed: end-to-end exactly-once across systems (Kafka → Spark is at-least-once; the Postgres result is
 effectively-once, see ADR-0008), production readiness of a single-node, unreplicated Kafka deployment, sub-minute
 lake freshness (the lake is refreshed by Airflow every 30 minutes, ADR-0009), or authentication on Trino (local stack,
 loopback only). Leak Hunter exposure figures are rule-based estimates of money at risk, not audited losses.
+Lineage is table-level, not column-level. A replay cannot recover records Bronze never received.

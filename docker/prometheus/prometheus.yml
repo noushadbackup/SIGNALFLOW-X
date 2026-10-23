@@ -1,0 +1,13 @@
+# Scrapes the SignalFlow exporter (platform state read from Postgres) and Prometheus itself.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+rule_files:
+  - /etc/prometheus/rules.yml
+scrape_configs:
+  - job_name: signalflow
+    static_configs:
+      - targets: ["exporter:9101"]
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

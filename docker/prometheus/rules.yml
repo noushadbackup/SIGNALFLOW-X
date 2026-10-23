@@ -1,0 +1,39 @@
+# Alerting rules over the exporter's metrics. The diagnostic checks themselves (contract violations, duplicate
+# surge, late data, stalled processing) run in SignalFlow and land in ops.alerts; Prometheus re-raises them and adds
+# the checks only an outside observer can make (exporter down, nothing processed, hunter or lake stale).
+groups:
+  - name: signalflow
+    rules:
+      - alert: SignalFlowExporterDown
+        expr: up{job="signalflow"} == 0 or signalflow_up == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "The SignalFlow exporter cannot be scraped or cannot read Postgres"
+      - alert: SignalFlowDiagnosticAlertFiring
+        expr: sum by (rule, severity) (signalflow_alerts_firing) > 0
+        labels: {severity: "{{ $labels.severity }}"}
+        annotations:
+          summary: "SignalFlow diagnostic rule {{ $labels.rule }} is firing ({{ $value }} subjects)"
+      - alert: SignalFlowProcessingBacklog
+        expr: signalflow_processing_backlog_records > 0 and signalflow_last_processing_age_seconds > 300
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Bronze has {{ $value }} unprocessed records and the processor has not committed for 5 minutes"
+      - alert: SignalFlowQuarantineIncrease
+        expr: sum by (reason) (increase(signalflow_quarantined_records[10m])) > 20
+        labels: {severity: warning}
+        annotations:
+          summary: "More than 20 records quarantined for {{ $labels.reason }} in 10 minutes"
+      - alert: SignalFlowLeakHunterStale
+        expr: signalflow_hunter_last_run_age_seconds > 1800
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "The Revenue Leak Hunter has not finished a run for more than 30 minutes"
+      - alert: SignalFlowLakeGoldMismatch
+        expr: signalflow_lake_gold_mismatched_tables > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "The latest differential check found {{ $value }} Gold tables differing between Postgres and the lake"

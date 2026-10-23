@@ -10,6 +10,9 @@ from signalflow import REPO_ROOT
 PIPELINE_CODE = [REPO_ROOT / "src" / "signalflow", REPO_ROOT / "dbt" / "models", REPO_ROOT / "dbt" / "macros",
                  REPO_ROOT / "sql"]
 FORBIDDEN = re.compile(r"truth|anomalies\.jsonl|valid_event_ids|manifest\.json", re.IGNORECASE)
+# Files that read dbt's own manifest (dbt/target/lineage/manifest.json, a dbt parse artifact). Only the word
+# "manifest.json" is excused there; every other forbidden word is still checked.
+DBT_MANIFEST_READERS = {"src/signalflow/lineage/graph.py"}
 
 
 def test_pipeline_code_never_references_ground_truth() -> None:
@@ -20,8 +23,10 @@ def test_pipeline_code_never_references_ground_truth() -> None:
                 continue
             if "generator" in path.relative_to(REPO_ROOT).parts:
                 continue  # the generator is the only writer of truth
+            excused = str(path.relative_to(REPO_ROOT)) in DBT_MANIFEST_READERS
             for n, line in enumerate(path.read_text().splitlines(), 1):
-                if FORBIDDEN.search(line):
+                hits = {m.group(0).lower() for m in FORBIDDEN.finditer(line)}
+                if hits - ({"manifest.json"} if excused else set()):
                     offenders.append(f"{path.relative_to(REPO_ROOT)}:{n}: {line.strip()}")
     assert offenders == []
 
